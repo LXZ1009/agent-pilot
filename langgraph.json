@@ -1,0 +1,11 @@
+{
+  "dependencies": ["./backend"],
+  "graphs": {
+    "supervisor": "./backend/src/agent_pilot/deepagents_graphs.py:supervisor",
+    "main_metric_agent": "./backend/src/agent_pilot/deepagents_graphs.py:main_metric_agent",
+    "partner_aging_agent": "./backend/src/agent_pilot/deepagents_graphs.py:partner_aging_agent",
+    "partner_balance_agent": "./backend/src/agent_pilot/deepagents_graphs.py:partner_balance_agent",
+    "finance_report_agent": "./backend/src/agent_pilot/deepagents_graphs.py:finance_report_agent"
+  },
+  "env": ".env"
+}

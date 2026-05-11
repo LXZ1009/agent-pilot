@@ -1,0 +1,370 @@
+import React, { useMemo, useState } from "react";
+
+const STATUS = {
+  done: { text: "已完成", cls: "text-emerald-300 bg-emerald-400/10 border-emerald-400/30", dot: "bg-emerald-400" },
+  running: { text: "执行中", cls: "text-sky-300 bg-sky-400/10 border-sky-400/30", dot: "bg-sky-400" },
+  pending: { text: "待处理", cls: "text-amber-300 bg-amber-400/10 border-amber-400/30", dot: "bg-amber-400" },
+  abnormal: { text: "异常", cls: "text-rose-300 bg-rose-400/10 border-rose-400/30", dot: "bg-rose-400" },
+  notstart: { text: "未开始", cls: "text-slate-400 bg-slate-500/10 border-slate-500/30", dot: "bg-slate-500" },
+};
+
+const navs = [
+  ["◎", "全景概览"],
+  ["◉", "方案中心", true],
+  ["☑", "任务中心"],
+  ["⚠", "告警中心", false, 12],
+  ["⌘", "Agent 监控"],
+  ["▣", "数据资产"],
+  ["▥", "数据源"],
+  ["◫", "分析报告"],
+  ["◇", "知识中心"],
+  ["⚙", "系统设置"],
+];
+
+const chainNodes = [
+  { id: 1, name: "方案规划", status: "done", lines: [["计划时间", "04-01 09:30"], ["计划量", "1,280 万吨"], ["计划项", "9 个"]], time: "04-01 10:12" },
+  { id: 2, name: "采购执行", status: "done", lines: [["采购量", "6,420 吨"], ["采购单", "86 单"], ["执行中订单", "0 单"]], time: "04-05 16:45" },
+  { id: 3, name: "入库管理", status: "done", lines: [["入库量", "8,520 吨"], ["入库单", "128 单"], ["待入库", "0 吨"]], time: "04-08 11:21" },
+  { id: 4, name: "库存管理", status: "running", selected: true, lines: [["库存量", "8,660 吨"], ["库存地点", "5 个"], ["异常记录", "2 条"]], time: "04-08 11:22" },
+  { id: 5, name: "销售执行", status: "done", lines: [["销售量", "7,950 吨"], ["销售单", "156 单"], ["待发货", "0 吨"]], time: "04-15 14:08" },
+  { id: 6, name: "资金管理", status: "pending", lines: [["资金占用", "5,240 万元"], ["应收未收", "2,360 万元"], ["待付款", "1,850 万元"]], time: "未开始" },
+  { id: 7, name: "套保管理", status: "running", lines: [["保证金", "1,860 万元"], ["未平仓量", "320 吨"], ["到期合约", "2 笔"]], time: "04-10 09:15" },
+  { id: 8, name: "结算管理", status: "pending", lines: [["待结算量", "1,520 吨"], ["待结算单", "28 单"], ["待开票", "16 单"]], time: "未开始" },
+  { id: 9, name: "利润分析", status: "pending", lines: [["预计毛利", "-"], ["预计净利", "-"], ["分析报告", "-"]], time: "未开始" },
+];
+
+const querySteps = [
+  ["1", "查询库存宽表", "已完成", "10:12:01", "done"],
+  ["2", "关联入库记录", "已完成", "10:12:03", "done"],
+  ["3", "关联出库记录", "已完成", "10:12:06", "done"],
+  ["4", "关联调拨记录", "已完成", "10:12:09", "done"],
+  ["5", "计算库存周转天数", "执行中", "10:12:12", "running"],
+  ["6", "识别库存积压", "待处理", "--:--", "pending"],
+];
+
+const agents = [
+  ["📦", "库存 Agent", "执行中", "任务：分析库存执行情况", "running"],
+  ["¥", "资金 Agent", "待处理", "任务：分析资金占用与应收应付", "pending"],
+  ["▥", "销售 Agent", "已完成", "任务：分析销售执行情况", "done"],
+  ["◇", "套保 Agent", "执行中", "任务：监控套保头寸与风险", "running"],
+  ["▣", "结算 Agent", "待处理", "任务：检查待结算与开票情况", "pending"],
+  ["●", "预警 Agent", "监测中", "任务：监控异常并推送预警", "running"],
+];
+
+const sources = [
+  ["库存宽表", "SAP-ERP", "库存量、物料、仓库、更新时间", "2024-05-20 10:12:01"],
+  ["入库单", "WMS", "入库量、入库单号、时间、仓库", "2024-05-20 10:11:58"],
+  ["出库单", "WMS", "出库量、出库单号、时间、仓库", "2024-05-20 10:11:56"],
+  ["调拨记录", "调拨系统", "调拨量、调出仓、调入仓、时间", "2024-05-20 10:11:54"],
+  ["销售执行表", "SAP-ERP", "销售量、销售单号、时间、物料", "2024-05-20 10:11:53"],
+];
+
+function Badge({ status, text }) {
+  const s = STATUS[status] || STATUS.notstart;
+  return <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs ${s.cls}`}>{text || s.text}</span>;
+}
+
+function Panel({ title, right, children, className = "" }) {
+  return (
+    <section className={`rounded-2xl border border-cyan-300/10 bg-slate-950/55 shadow-[0_0_35px_rgba(15,23,42,0.45)] backdrop-blur ${className}`}>
+      {(title || right) && (
+        <div className="flex items-center justify-between border-b border-white/7 px-4 py-3">
+          <h3 className="text-sm font-semibold text-slate-100">{title}</h3>
+          <div className="text-xs text-slate-400">{right}</div>
+        </div>
+      )}
+      {children}
+    </section>
+  );
+}
+
+function Sidebar() {
+  return (
+    <aside className="hidden w-48 shrink-0 border-r border-cyan-300/10 bg-slate-950/80 px-3 py-4 lg:block">
+      <div className="mb-7 flex items-center gap-3 px-2">
+        <div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-cyan-400 to-blue-700 text-lg shadow-lg shadow-cyan-500/20">◑</div>
+        <div>
+          <div className="text-lg font-semibold text-white">LinkAI</div>
+          <div className="text-[11px] text-slate-500">可信链路 · 数据员工</div>
+        </div>
+      </div>
+
+      <nav className="space-y-1.5">
+        {navs.map(([icon, label, active, count]) => (
+          <div key={label} className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-sm transition ${active ? "bg-blue-600/80 text-white shadow-lg shadow-blue-600/20" : "text-slate-300 hover:bg-white/5"}`}>
+            <span className="flex items-center gap-3"><span className="text-base opacity-90">{icon}</span>{label}</span>
+            {count ? <span className="rounded-full bg-rose-500 px-1.5 text-[10px] text-white">{count}</span> : null}
+          </div>
+        ))}
+      </nav>
+
+      <div className="absolute bottom-5 left-3 right-auto w-36 rounded-2xl border border-cyan-300/10 bg-slate-900/80 p-3 text-center">
+        <div className="mx-auto mb-2 grid h-16 w-16 place-items-center rounded-full bg-gradient-to-br from-cyan-400/30 to-violet-500/30 text-3xl">🤖</div>
+        <div className="text-xs text-slate-400">平台健康度</div>
+        <div className="mt-1 text-3xl font-bold text-emerald-300">92</div>
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-700"><div className="h-full w-[82%] rounded-full bg-gradient-to-r from-blue-500 to-emerald-400" /></div>
+      </div>
+    </aside>
+  );
+}
+
+function Header() {
+  return (
+    <header className="flex shrink-0 items-center justify-between border-b border-cyan-300/10 bg-slate-950/65 px-5 py-3 backdrop-blur">
+      <div>
+        <div className="flex items-center gap-2 text-xl font-semibold text-white">
+          <span>方案中心 / 方案执行 / 海韵（单）方案</span>
+          <Badge status="running" />
+        </div>
+        <div className="mt-1 flex flex-wrap gap-5 text-xs text-slate-400">
+          <span>方案编号：HYD-2024-001</span>
+          <span>负责人：张三</span>
+          <span>执行周期：2024-04-01 ~ 2024-12-31</span>
+        </div>
+      </div>
+      <div className="flex items-center gap-3">
+        <div className="hidden w-[430px] items-center gap-2 rounded-xl border border-cyan-300/15 bg-slate-900/80 px-3 py-2 xl:flex">
+          <span className="text-slate-400">⌕</span>
+          <input className="w-full bg-transparent text-sm text-slate-200 outline-none placeholder:text-slate-500" placeholder="查看海韵（单）方案当前执行情况，重点关注库存管理" />
+          <button className="rounded-lg bg-blue-600 px-3 py-1.5 text-white">➤</button>
+        </div>
+        <span className="text-sm text-slate-300">智能助手</span>
+        <span className="relative text-slate-300">消息<span className="absolute -right-3 -top-2 rounded-full bg-rose-500 px-1 text-[10px] text-white">8</span></span>
+        <div className="grid h-8 w-8 place-items-center rounded-full bg-slate-700">👤</div>
+        <span className="text-sm text-slate-200">张三⌄</span>
+      </div>
+    </header>
+  );
+}
+
+function ChainNode({ node, onClick }) {
+  const s = STATUS[node.status] || STATUS.notstart;
+  return (
+    <button onClick={() => onClick(node)} className={`relative min-w-[150px] rounded-xl border p-3 text-left transition hover:-translate-y-0.5 ${node.selected ? "border-sky-400 bg-sky-500/15 shadow-[0_0_24px_rgba(56,189,248,0.45)]" : "border-cyan-300/12 bg-slate-900/75 hover:border-cyan-300/30"}`}>
+      <div className="mb-2 flex items-center justify-between">
+        <span className="grid h-6 w-6 place-items-center rounded-full bg-slate-800 text-xs text-cyan-200">{node.id}</span>
+        <Badge status={node.status} />
+      </div>
+      <div className="mb-3 font-semibold text-slate-100">{node.name}</div>
+      <div className="space-y-1.5 text-xs">
+        {node.lines.map(([k, v]) => (
+          <div key={k} className="flex justify-between gap-4 text-slate-400"><span>{k}</span><span className={v.includes("2 条") ? "text-rose-300" : "text-slate-200"}>{v}</span></div>
+        ))}
+      </div>
+      <div className="mt-4 border-t border-white/7 pt-2 text-xs text-slate-500">完成时间　{node.time}</div>
+      {node.id < 9 ? <div className="pointer-events-none absolute -right-5 top-1/2 hidden -translate-y-1/2 text-2xl text-cyan-300/70 xl:block">→</div> : null}
+    </button>
+  );
+}
+
+function ChainOverview({ onClick }) {
+  return (
+    <Panel title="执行链路全景" right="实时更新：2024-05-20 10:15:30" className="overflow-hidden">
+      <div className="relative p-4">
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex gap-3 text-xs text-slate-400">
+            <span className="inline-flex items-center gap-1"><i className="h-2 w-2 rounded-full bg-emerald-400" /> 已完成</span>
+            <span className="inline-flex items-center gap-1"><i className="h-2 w-2 rounded-full bg-sky-400" /> 执行中</span>
+            <span className="inline-flex items-center gap-1"><i className="h-2 w-2 rounded-full bg-amber-400" /> 待处理</span>
+            <span className="inline-flex items-center gap-1"><i className="h-2 w-2 rounded-full bg-rose-400" /> 异常</span>
+          </div>
+          <button className="rounded-xl border border-cyan-300/20 px-3 py-1.5 text-xs text-slate-300">返回方案进展图</button>
+        </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-9">
+          {chainNodes.map((node) => <ChainNode key={node.id} node={node} onClick={onClick} />)}
+        </div>
+      </div>
+    </Panel>
+  );
+}
+
+function NodeDetail() {
+  return (
+    <Panel title="节点详情：库存管理（执行中）" right={<span>刷新时间：10:15:30　<button className="ml-2 rounded-lg border border-cyan-300/20 px-2 py-1 text-slate-300">刷新</button></span>} className="min-h-[520px]">
+      <div className="grid h-full grid-cols-1 gap-4 p-4 xl:grid-cols-[300px_1fr]">
+        <div>
+          <div className="mb-4 rounded-xl border border-cyan-300/10 bg-slate-900/75 p-4">
+            <div className="mb-3 flex items-center gap-3">
+              <div className="grid h-10 w-10 place-items-center rounded-full bg-blue-500/20 text-xl">🤖</div>
+              <div>
+                <div className="font-semibold text-white">Agent：库存 Agent</div>
+                <div className="text-xs text-slate-400">当前任务：分析库存执行情况 / 查询库存异常原因</div>
+              </div>
+            </div>
+          </div>
+          <h4 className="mb-3 text-sm font-semibold text-slate-100">查询步骤</h4>
+          <div className="space-y-2">
+            {querySteps.map(([n, title, state, time, status]) => (
+              <div key={n} className="flex items-center gap-3 rounded-xl border border-cyan-300/10 bg-slate-900/60 p-3">
+                <span className={`grid h-7 w-7 place-items-center rounded-full text-xs ${status === "done" ? "bg-blue-500 text-white" : status === "running" ? "bg-sky-500 text-white" : "bg-slate-700 text-slate-300"}`}>{n}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm text-slate-200">{title}</div>
+                </div>
+                <div className={`text-xs ${status === "pending" ? "text-amber-300" : status === "running" ? "text-sky-300" : "text-emerald-300"}`}>{state}</div>
+                <div className="text-xs text-slate-500">{time}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-cyan-300/10 bg-slate-900/60 p-4">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div className="space-y-4">
+              <InfoBlock title="使用数据" items={["库存宽表、入库单、出库单、调拨记录、销售执行表"]} />
+              <InfoBlock title="关键字段" items={["方案名称、仓库、物料、库存量、入库量、出库量、周转天数、更新时间"]} />
+              <InfoBlock title="查询结果摘要" items={["库存量 8,660 吨　　周转天数 48 天　　较上期 +15 天", "较上期库存量 +320 吨　　异常记录 2 条（点击查看）"]} />
+            </div>
+            <div className="flex flex-col rounded-xl border border-amber-300/20 bg-amber-500/5 p-4">
+              <div className="mb-3 text-sm font-semibold text-slate-200">结论</div>
+              <div className="mt-auto rounded-xl border border-amber-300/25 bg-slate-950/60 p-4 text-base font-semibold text-amber-300">
+                存在库存周转偏慢，影响后续销售与资金占用
+              </div>
+              <div className="mt-4 text-xs leading-6 text-slate-400">
+                该结论由库存 Agent 基于库存宽表、入库记录、出库记录、调拨记录与销售执行表进行关联分析后形成。所有指标、计算逻辑和原始数据来源均可追溯。
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Panel>
+  );
+}
+
+function InfoBlock({ title, items }) {
+  return (
+    <div className="rounded-xl border border-cyan-300/10 bg-slate-950/50 p-4">
+      <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-cyan-200"><span>▣</span>{title}</div>
+      {items.map((item) => <p key={item} className="text-sm leading-7 text-slate-300">{item}</p>)}
+    </div>
+  );
+}
+
+function TracePanel() {
+  const trace = [
+    ["结论", "存在库存周转偏慢"],
+    ["指标", "库存周转天数 48 天"],
+    ["计算逻辑", "库存量 / 近30天平均出库量"],
+    ["加工数据", "按方案 + 仓库 + 物料 聚合"],
+    ["原始来源", "SAP-ERP、WMS、调拨系统"],
+  ];
+  return (
+    <Panel title="数据可信链路（结论可追溯）" right="⛶">
+      <div className="p-4">
+        <div className="space-y-0">
+          {trace.map(([k, v], idx) => (
+            <div key={k} className="relative flex gap-3 pb-4 last:pb-0">
+              {idx < trace.length - 1 ? <div className="absolute left-[7px] top-5 h-full w-px bg-sky-400/30" /> : null}
+              <span className="relative mt-1 h-3.5 w-3.5 rounded-full border border-sky-300 bg-sky-500 shadow-[0_0_12px_rgba(56,189,248,0.8)]" />
+              <div className="grid min-w-0 flex-1 grid-cols-[80px_1fr] rounded-lg bg-slate-900/60 px-3 py-2 text-sm">
+                <span className="text-slate-400">{k}</span>
+                <span className={idx === 0 ? "font-semibold text-amber-300" : "text-slate-200"}>{v}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </Panel>
+  );
+}
+
+function SourceTable() {
+  return (
+    <Panel title="原始数据追溯（样例）">
+      <div className="p-4">
+        <div className="overflow-hidden rounded-xl border border-cyan-300/10">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-slate-900 text-slate-400">
+              <tr>{["数据对象", "来源系统", "关键字段", "最新更新时间"].map(h => <th key={h} className="px-3 py-2 font-medium">{h}</th>)}</tr>
+            </thead>
+            <tbody className="divide-y divide-white/5 bg-slate-950/40">
+              {sources.map(row => (
+                <tr key={row.join("-")} className="text-slate-300 hover:bg-slate-800/40">
+                  {row.map((cell, idx) => <td key={idx} className="px-3 py-2">{cell}</td>)}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </Panel>
+  );
+}
+
+function AgentPanel() {
+  return (
+    <Panel title="当前分析任务（6）" className="h-full">
+      <div className="space-y-2 p-4">
+        {agents.map(([icon, name, state, desc, status]) => (
+          <div key={name} className="rounded-xl border border-cyan-300/10 bg-slate-900/60 p-3">
+            <div className="mb-1 flex items-center gap-3">
+              <div className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-slate-700 to-slate-900 text-lg">{icon}</div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-semibold text-slate-100">{name}</span>
+                  <span className={status === "done" ? "text-emerald-300 text-xs" : status === "pending" ? "text-amber-300 text-xs" : "text-sky-300 text-xs"}>{state}</span>
+                </div>
+                <div className="mt-1 truncate text-xs text-slate-400">{desc}</div>
+              </div>
+            </div>
+          </div>
+        ))}
+        <button className="mt-2 w-full rounded-xl border border-cyan-300/15 py-2 text-sm text-sky-300 hover:bg-sky-400/5">查看全部任务 ›</button>
+      </div>
+    </Panel>
+  );
+}
+
+function MainApp() {
+  const [selectedNode, setSelectedNode] = useState(chainNodes.find(n => n.selected));
+  const statusText = useMemo(() => selectedNode?.name || "库存管理", [selectedNode]);
+  return (
+    <div className="min-h-screen overflow-hidden bg-[#05101f] text-slate-100">
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(37,99,235,0.28),transparent_35%),radial-gradient(circle_at_85%_35%,rgba(14,165,233,0.16),transparent_30%),radial-gradient(circle_at_20%_90%,rgba(124,58,237,0.14),transparent_35%)]" />
+      <div className="pointer-events-none fixed inset-0 opacity-[0.07]" style={{ backgroundImage: "linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px)", backgroundSize: "36px 36px" }} />
+      <div className="relative flex h-screen">
+        <Sidebar />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <Header />
+          <main className="min-h-0 flex-1 overflow-auto p-4">
+            <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
+              <Metric title="当前节点" value={statusText} sub="已定位到可观测链路" />
+              <Metric title="库存量" value="8,660 吨" sub="覆盖 5 个库存地点" />
+              <Metric title="周转天数" value="48 天" sub="较上期 +15 天" warn />
+              <Metric title="使用数据" value="5 类" sub="ERP / WMS / 调拨系统" />
+              <Metric title="异常记录" value="2 条" sub="均可展开追溯" danger />
+            </div>
+
+            <ChainOverview onClick={setSelectedNode} />
+
+            <div className="mt-4 grid grid-cols-1 gap-4 2xl:grid-cols-[1fr_360px]">
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.25fr_1fr]">
+                <NodeDetail />
+                <div className="space-y-4">
+                  <TracePanel />
+                  <SourceTable />
+                </div>
+              </div>
+              <AgentPanel />
+            </div>
+          </main>
+          <footer className="flex shrink-0 items-center justify-between border-t border-cyan-300/10 bg-slate-950/70 px-5 py-2 text-xs text-slate-500">
+            <div className="flex gap-5"><span>节点状态说明：● 已完成　● 执行中　● 待处理　● 异常</span><span>数据更新：10:15:30</span></div>
+            <div><span className="text-emerald-300">●</span> 自动刷新：已开启（30秒）　<button className="text-sky-300">设置</button></div>
+          </footer>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Metric({ title, value, sub, warn, danger }) {
+  return (
+    <div className={`rounded-2xl border bg-slate-950/55 p-4 ${danger ? "border-rose-400/20" : warn ? "border-amber-400/20" : "border-cyan-300/10"}`}>
+      <div className="text-xs text-slate-400">{title}</div>
+      <div className={`mt-2 truncate text-2xl font-semibold ${danger ? "text-rose-300" : warn ? "text-amber-300" : "text-white"}`}>{value}</div>
+      <div className="mt-1 text-xs text-slate-500">{sub}</div>
+    </div>
+  );
+}
+
+export default MainApp;

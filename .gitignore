@@ -206,6 +206,23 @@ tempCodeRunnerFile.py
 # Ruff stuff:
 .ruff_cache/
 
+# Node / Vite
+node_modules/
+frontend/dist/
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts
+
+# Local run logs
+tmp/
+.langgraph_api/
+
+# Large generated/vendor assets from project-level Kami skill install.
+.agents/skills/kami/dist/
+.agents/skills/kami/assets/demos/
+.agents/skills/kami/assets/fonts/*.ttf
+.agents/skills/kami/assets/illustrations/*.png
+
 # PyPI configuration file
 .pypirc
 
