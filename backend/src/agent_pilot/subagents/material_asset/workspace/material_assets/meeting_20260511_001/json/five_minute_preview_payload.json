@@ -1,0 +1,47 @@
+{
+  "asset_id": "five_minute_preview_payload",
+  "asset_type": "five_minute_preview_payload",
+  "version": "v1",
+  "target_audience": "主持人A及参会人员",
+  "preview_title": "华东大区定价会 — 5分钟预览",
+  "meeting_id": "meeting_20260511_001",
+  "meeting_title": "华东大区定价会",
+  "scheduled_start": "2026-05-11T15:30:00Z",
+  "business_topic": "重点客户价格策略与风险提示",
+  "executive_summary": "本次定价会聚焦华东大区两家重点客户的续约定价：浙江建投交通基础设施有限公司（合同5月31日到期，月均采购约1030吨）和江苏交工材料有限公司（框架协议6月中旬到期，月均采购约750吨）。统一成本线为3750元/吨。浙江建投底线价3850元/吨，江苏交工底线价3830元/吨。竞品对江苏交工的威胁程度较高（报价3820–3850元/吨），存在20%–30%分流风险。会议需明确审批层级、量价挂钩政策及区域价格统一管理边界。",
+  "key_decisions_needed": [
+    "浙江建投主推报价区间确认（建议3880–3900元/吨）",
+    "江苏交工报价策略确认（建议控制在3830–3860元/吨）",
+    "触及底线价时的附加条件确认（采购量锁定、账期缩短、预付款等）",
+    "杭州路桥、上海城建是否纳入专项价格或统一审批的决策",
+    "缺失信息补充计划确认"
+  ],
+  "customer_highlights": [
+    {
+      "customer": "浙江建投交通基础设施有限公司",
+      "urgency": "高（合同5月31日到期）",
+      "monthly_volume": "约1030吨",
+      "recommended_price": "3880–3900元/吨",
+      "bottom_line": "≥3850元/吨",
+      "key_risk": "若压至3850元/吨，月收入影响约3.1万元"
+    },
+    {
+      "customer": "江苏交工材料有限公司",
+      "urgency": "中（框架6月中旬到期）",
+      "monthly_volume": "约750吨",
+      "recommended_price": "约3860元/吨",
+      "bottom_line": ">3830元/吨",
+      "key_risk": "竞品威胁高，存在20%–30%分流可能"
+    }
+  ],
+  "risk_alerts": [
+    "浙江建投合同到期紧迫，需5月20日前形成内部决策口径",
+    "江苏交工面临高威胁竞品，分流风险20%–30%",
+    "两家客户底线毛利极薄（80–100元/吨）",
+    "关键信息缺失4项，可能影响决策完整性"
+  ],
+  "package_status": "pending_info",
+  "missing_field_count": 4,
+  "generated_at": "2026-05-11T00:00:00Z",
+  "source_refs": ["interview_card_zhangsan"]
+}

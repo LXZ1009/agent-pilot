@@ -1,0 +1,58 @@
+{
+  "asset_package_id": "meeting_20260511_001",
+  "missing_items": [
+    {
+      "missing_id": "missing_001",
+      "field": "interviewee_title",
+      "description": "张三本人的具体职务",
+      "impact": "影响访谈卡片的人员背景完整性和决策权重判断",
+      "suggested_question": "张三在华东大区的具体职务是什么？是否具备定价决策权限？",
+      "target_agent": "PreMeetingInterviewAgent",
+      "target_role": "客户经理 / 人事系统",
+      "priority": "medium",
+      "status": "pending"
+    },
+    {
+      "missing_id": "missing_002",
+      "field": "inventory_level",
+      "description": "华东大区当前库存水平",
+      "impact": "库存水平直接影响定价弹性——高库存时议价空间更大，低库存时需优先保障出货节奏",
+      "suggested_question": "华东大区当前沥青库存量是多少吨？库龄结构如何？是否存在临期或滞销风险？",
+      "target_agent": "DataQueryAgent",
+      "target_role": "仓储/财务部门",
+      "priority": "high",
+      "status": "pending"
+    },
+    {
+      "missing_id": "missing_003",
+      "field": "minimum_commitment_clauses",
+      "description": "浙江建投和江苏交工两家客户框架协议中是否有最低采购量承诺或对赌条款",
+      "impact": "若存在对赌条款，未达最低采购量可能触发违约金或价格调整机制，直接影响续约谈判策略",
+      "suggested_question": "浙江建投和江苏交工的框架协议中是否包含最低采购量承诺？对赌条款的具体条件和违约责任是什么？",
+      "target_agent": "DataQueryAgent",
+      "target_role": "法务/合同管理部门",
+      "priority": "high",
+      "status": "pending"
+    },
+    {
+      "missing_id": "missing_004",
+      "field": "other_customer_details",
+      "description": "杭州路桥、上海城建的具体压价诉求或竞品接触情况",
+      "impact": "这两家客户可能跟价，若不了解其具体诉求和竞品接触情况，无法准确判断区域价格体系扰动范围和专项价格适用范围",
+      "suggested_question": "杭州路桥和上海城建近期是否有压价诉求？是否与竞品有过接触或收到竞品报价？",
+      "target_agent": "PreMeetingInterviewAgent",
+      "target_role": "客户经理",
+      "priority": "medium",
+      "status": "pending"
+    }
+  ],
+  "summary": {
+    "total_missing_items": 4,
+    "high_priority_count": 2,
+    "medium_priority_count": 2,
+    "low_priority_count": 0,
+    "package_status": "pending_info",
+    "can_proceed_to_preview": true,
+    "preview_quality_note": "虽存在4项缺失信息，但核心定价数据（成本线、底线价、竞品报价、采购量）已完整，可生成会前预览素材。缺失信息建议在会前补充或在会议中明确标注。"
+  }
+}

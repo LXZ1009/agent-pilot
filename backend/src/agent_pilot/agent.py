@@ -23,6 +23,9 @@ from agent_pilot.subagents.pre_meeting_interview.agent import (
     inspect_interview_card_schema as interview_card_schema,
     inspect_interview_state_machine,
 )
+from agent_pilot.subagents.pre_meeting_interview.skill_loader import (
+    SKILL_SOURCES as PRE_MEETING_INTERVIEW_SKILL_SOURCES,
+)
 
 SYSTEM_PROMPT = f"""\
 你是定价会议主控 Agent（PricingMeetingAgent），也是唯一面向用户交互的 Agent。
@@ -54,13 +57,20 @@ SYSTEM_PROMPT = f"""\
 model = get_model()
 
 
-def _sync_subagent(name: str, description: str, system_prompt: str, tools: list[Any]) -> dict[str, Any]:
+def _sync_subagent(
+    name: str,
+    description: str,
+    system_prompt: str,
+    tools: list[Any],
+    skills: list[str] | None = None,
+) -> dict[str, Any]:
     return {
         "name": name,
         "description": description,
         "system_prompt": system_prompt,
         "tools": tools,
         "model": model,
+        **({"skills": skills} if skills else {}),
     }
 
 
@@ -87,6 +97,7 @@ SYNC_SUBAGENTS: list[dict[str, Any]] = [
             interview_external_contracts,
             get_default_interview_questions,
         ],
+        PRE_MEETING_INTERVIEW_SKILL_SOURCES,
     ),
     _sync_subagent(
         "interview_structuring_agent",

@@ -1,0 +1,57 @@
+{
+  "asset_id": "key_customer_list",
+  "asset_type": "key_customer_list",
+  "version": "v1",
+  "customers": [
+    {
+      "rank": 1,
+      "customer_name": "浙江建投交通基础设施有限公司",
+      "customer_slug": "zhejiang_jiantou",
+      "strategic_level": "高（合同到期紧迫）",
+      "monthly_avg_volume": 1030,
+      "volume_unit": "吨",
+      "volume_trend": "上升（900→1050→1150）",
+      "current_cooperation_status": "合同2026-05-31到期，续约谈判窗口已开启",
+      "historical_price_execution": {
+        "avg_range": "3870–3890元/吨",
+        "latest_price": 3880,
+        "recommended_price": "3880–3900元/吨"
+      },
+      "churn_risk": "中（竞品报价3860–3890，威胁程度中高，但供货稳定性一般）",
+      "maintenance_suggestion": "主推3880–3900元/吨，底线≥3850元/吨；若压至3850–3860元/吨，需锁定采购量或压缩账期至15–20天",
+      "approval_note": "≤3850元/吨由大区销售负责人+财务测算确认；低于3850需华东大区总经理审批"
+    },
+    {
+      "rank": 2,
+      "customer_name": "江苏交工材料有限公司",
+      "customer_slug": "jiangsu_jiaogong",
+      "strategic_level": "中高（框架协议下持续采购）",
+      "monthly_avg_volume": 750,
+      "volume_unit": "吨",
+      "volume_trend": "上升（650→780→820）",
+      "current_cooperation_status": "框架协议2026年6月中旬到期，谈判紧迫性略低于浙江建投",
+      "historical_price_execution": {
+        "avg_range": "3840–3860元/吨",
+        "latest_price": 3860,
+        "recommended_price": "约3860元/吨"
+      },
+      "churn_risk": "高（竞品报价3820–3850，威胁程度高，存在20%–30%被分流可能）",
+      "maintenance_suggestion": "控制在3830–3860元/吨区间+绑定配送和账期条件；底线>3830元/吨",
+      "approval_note": "=3830元/吨由大区销售负责人+财务测算确认；低于3830建议走总部营销/价格委员会审批"
+    }
+  ],
+  "monitored_customers": [
+    {
+      "customer_name": "杭州路桥",
+      "status": "待跟进",
+      "note": "可能跟价，具体压价诉求和竞品接触情况缺失"
+    },
+    {
+      "customer_name": "上海城建",
+      "status": "待跟进",
+      "note": "可能跟价，具体压价诉求和竞品接触情况缺失"
+    }
+  ],
+  "generated_at": "2026-05-11T00:00:00Z",
+  "source_refs": ["interview_card_zhangsan"]
+}

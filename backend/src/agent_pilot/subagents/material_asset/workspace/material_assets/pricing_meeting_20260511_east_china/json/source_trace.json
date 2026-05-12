@@ -1,0 +1,88 @@
+{
+  "asset_id": "source_trace",
+  "asset_package_id": "pricing_meeting_20260511_east_china",
+  "sources": [
+    {
+      "source_id": "interview_card_zhangsan",
+      "source_type": "interview_card",
+      "source_name": "张三会前访谈卡片",
+      "description": "包含浙江建投和江苏交工两家客户的完整访谈数据，包括合同信息、采购量、价格区间、竞品情况、审批层级和谈判条件",
+      "data_fields_covered": [
+        "客户合同/框架协议到期日",
+        "近三月采购量及趋势",
+        "历史均价与最近成交价",
+        "主推价与底线价",
+        "账期条件",
+        "产品规格",
+        "竞品报价与威胁等级",
+        "审批层级触发条件",
+        "谈判附加条件"
+      ]
+    },
+    {
+      "source_id": "internal_policy_volume_discount",
+      "source_type": "internal_policy",
+      "source_name": "量价挂钩阶梯政策（内部参考）",
+      "description": "内部定价政策，规定不同采购量区间的让利幅度"
+    },
+    {
+      "source_id": "meeting_context",
+      "source_type": "meeting_context",
+      "source_name": "会议上下文",
+      "description": "会议ID、时间、主持人、议题等基本信息"
+    }
+  ],
+  "claims": [
+    {
+      "claim_id": "claim_001",
+      "claim": "浙江建投交通基础设施有限公司合同于2026-05-31到期，需在5月20日前形成内部决策口径。",
+      "claim_type": "fact",
+      "source_refs": ["interview_card_zhangsan"],
+      "confidence": "high"
+    },
+    {
+      "claim_id": "claim_002",
+      "claim": "浙江建投近三月月均采购量约1030吨，呈上升趋势。",
+      "claim_type": "fact",
+      "source_refs": ["interview_card_zhangsan"],
+      "confidence": "high"
+    },
+    {
+      "claim_id": "claim_003",
+      "claim": "浙江建投底线价为≥3850元/吨，若压至3850–3860元/吨建议锁定采购量或压缩账期至15–20天。",
+      "claim_type": "suggestion",
+      "source_refs": ["interview_card_zhangsan"],
+      "confidence": "high"
+    },
+    {
+      "claim_id": "claim_004",
+      "claim": "江苏交工材料有限公司框架协议于2026年6月中旬到期，存在20%–30%订单分流风险。",
+      "claim_type": "fact",
+      "source_refs": ["interview_card_zhangsan"],
+      "confidence": "high"
+    },
+    {
+      "claim_id": "claim_005",
+      "claim": "江苏交工面临华东本地贸易商/地炼渠道高威胁竞争，报价3820–3850元/吨。",
+      "claim_type": "fact",
+      "source_refs": ["interview_card_zhangsan"],
+      "confidence": "high"
+    },
+    {
+      "claim_id": "claim_006",
+      "claim": "成本线保守测算为3750元/吨。",
+      "claim_type": "assumption",
+      "source_refs": ["interview_card_zhangsan"],
+      "confidence": "medium",
+      "note": "保守测算值，实际成本可能有所不同"
+    },
+    {
+      "claim_id": "claim_007",
+      "claim": "量价挂钩阶梯政策：1000–1500吨可让利20–30元/吨；500–1000吨可让利10–20元/吨。",
+      "claim_type": "fact",
+      "source_refs": ["internal_policy_volume_discount"],
+      "confidence": "high"
+    }
+  ],
+  "generated_at": "2026-05-11T00:00:00Z"
+}

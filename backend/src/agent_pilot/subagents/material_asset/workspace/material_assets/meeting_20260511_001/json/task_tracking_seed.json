@@ -1,0 +1,87 @@
+{
+  "asset_id": "task_tracking_seed",
+  "asset_type": "task_tracking_seed",
+  "version": "v1",
+  "meeting_id": "meeting_20260511_001",
+  "tasks": [
+    {
+      "task_id": "task_001",
+      "task_type": "pre_meeting_action",
+      "title": "确认浙江建投续约谈判内部决策口径",
+      "description": "确保在5月20日前形成浙江建投的定价决策口径，最晚5月中旬启动谈判。",
+      "assigned_to": "大区销售负责人",
+      "deadline": "2026-05-20",
+      "priority": "高",
+      "status": "pending",
+      "related_customer": "浙江建投交通基础设施有限公司"
+    },
+    {
+      "task_id": "task_002",
+      "task_type": "pre_meeting_action",
+      "title": "明确江苏交工报价策略",
+      "description": "在5月下旬前明确江苏交工的报价策略，控制在3830–3860元/吨区间。",
+      "assigned_to": "大区销售负责人",
+      "deadline": "2026-05-25",
+      "priority": "中",
+      "status": "pending",
+      "related_customer": "江苏交工材料有限公司"
+    },
+    {
+      "task_id": "task_003",
+      "task_type": "data_collection",
+      "title": "补充缺失信息：张三职务",
+      "description": "获取张三本人的具体职务信息。",
+      "assigned_to": "PricingMeetingAgent / PreMeetingInterviewAgent",
+      "deadline": "2026-05-11",
+      "priority": "中",
+      "status": "pending",
+      "missing_field_ref": "interviewee_title"
+    },
+    {
+      "task_id": "task_004",
+      "task_type": "data_collection",
+      "title": "补充缺失信息：华东大区库存水平",
+      "description": "获取华东大区当前库存水平数据。",
+      "assigned_to": "财务/仓储部门",
+      "deadline": "2026-05-11",
+      "priority": "高",
+      "status": "pending",
+      "missing_field_ref": "inventory_level"
+    },
+    {
+      "task_id": "task_005",
+      "task_type": "data_collection",
+      "title": "补充缺失信息：最低采购量承诺或对赌条款",
+      "description": "核实浙江建投和江苏交工两家客户框架协议中是否有最低采购量承诺或对赌条款。",
+      "assigned_to": "法务/合同管理部门",
+      "deadline": "2026-05-12",
+      "priority": "高",
+      "status": "pending",
+      "missing_field_ref": "minimum_commitment_clauses"
+    },
+    {
+      "task_id": "task_006",
+      "task_type": "data_collection",
+      "title": "补充缺失信息：杭州路桥、上海城建动态",
+      "description": "了解杭州路桥、上海建城的压价诉求或竞品接触情况。",
+      "assigned_to": "客户经理",
+      "deadline": "2026-05-12",
+      "priority": "中",
+      "status": "pending",
+      "missing_field_ref": "other_customer_details"
+    },
+    {
+      "task_id": "task_007",
+      "task_type": "meeting_decision",
+      "title": "确定专项价格适用范围与区域统一审批边界",
+      "description": "在会议上明确哪些客户可以执行专项价格，哪些必须纳入区域统一审批，防止区域价格体系扰动。",
+      "assigned_to": "主持人A + 华东大区总经理",
+      "deadline": "2026-05-11",
+      "priority": "中",
+      "status": "pending",
+      "related_customers": ["杭州路桥", "上海城建"]
+    }
+  ],
+  "generated_at": "2026-05-11T00:00:00Z",
+  "source_refs": ["interview_card_zhangsan"]
+}

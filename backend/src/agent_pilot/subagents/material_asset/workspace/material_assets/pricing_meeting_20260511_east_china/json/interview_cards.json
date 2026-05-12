@@ -1,0 +1,127 @@
+{
+  "asset_id": "interview_cards",
+  "interviewer": "张三",
+  "zhangsan_role": "missing",
+  "interview_date": "2026-05-11",
+  "customers": [
+    {
+      "customer_id": "customer_zhejiang_jiantou",
+      "customer_name": "浙江建投交通基础设施有限公司",
+      "contract_type": "合同到期",
+      "contract_expiry": "2026-05-31",
+      "negotiation_window": {
+        "start_deadline": "2026-05月中旬",
+        "decision_deadline": "2026-05-20",
+        "description": "最晚5月中旬启动，5月20日前形成内部决策口径"
+      },
+      "procurement_volume": {
+        "month_2026_02": "约900吨",
+        "month_2026_03": "约1050吨",
+        "month_2026_04": "约1150吨",
+        "monthly_average": "约1030吨",
+        "trend": "上升"
+      },
+      "pricing": {
+        "historical_avg_range": "3870–3890元/吨",
+        "latest_transaction_price": "3880元/吨",
+        "recommended_price": "3880–3900元/吨",
+        "floor_price": "≥3850元/吨"
+      },
+      "payment_terms": "月结30天",
+      "product_specification": {
+        "product": "道路石油沥青70# A级",
+        "packaging": "散装",
+        "delivery": "华东区域配送"
+      },
+      "competitor_info": {
+        "competitor_price_range": "3860–3890元/吨",
+        "threat_level": "中高威胁",
+        "competitor_description": "区域主流品牌"
+      },
+      "approval_hierarchy": [
+        {
+          "condition": "≤3850元/吨",
+          "required_approval": "大区销售负责人 + 财务测算确认"
+        },
+        {
+          "condition": "<3850元/吨",
+          "required_approval": "华东大区总经理审批"
+        }
+      ],
+      "negotiation_conditions": "若压至3850–3860元/吨，建议锁定采购量或压缩账期至15–20天",
+      "additional_notes": "合同到期日紧迫（5月31日），需在5月20日前形成决策口径"
+    },
+    {
+      "customer_id": "customer_jiangsu_jiaogong",
+      "customer_name": "江苏交工材料有限公司",
+      "contract_type": "框架协议到期",
+      "contract_expiry": "2026年6月中旬",
+      "procurement_volume": {
+        "month_2026_02": "约650吨",
+        "month_2026_03": "约780吨",
+        "month_2026_04": "约820吨",
+        "monthly_average": "约750吨",
+        "trend": "上升"
+      },
+      "pricing": {
+        "historical_avg_range": "3840–3860元/吨",
+        "latest_transaction_price": "3860元/吨",
+        "recommended_price": "约3860元/吨",
+        "floor_price": ">3830元/吨"
+      },
+      "payment_terms": "月结45天",
+      "product_specification": {
+        "product": "道路石油沥青70# A级",
+        "delivery_mode": "项目批次供货为主"
+      },
+      "competitor_info": {
+        "competitor_price_range": "3820–3850元/吨",
+        "threat_level": "高威胁",
+        "competitor_description": "华东本地贸易商/地炼渠道",
+        "competitor_characteristics": "阶段性低价抢单，非大型稳定直供品牌，供货能力不确定"
+      },
+      "renewal_expectations": {
+        "expected_volume_range": "700–900吨/月",
+        "diversion_risk": "存在20%–30%订单分流风险"
+      },
+      "approval_hierarchy": [
+        {
+          "condition": "=3830元/吨",
+          "required_approval": "大区销售负责人 + 财务测算确认"
+        },
+        {
+          "condition": "<3830元/吨",
+          "required_approval": "建议总部营销/价格委员会审批"
+        }
+      ],
+      "negotiation_conditions": "若执行3830元/吨底线价，必须要求10%–20%预付款或账期缩短至30天内",
+      "additional_notes": "竞品威胁等级高于浙江建投，但客户体量较小；账期较长（月结45天）需重点关注"
+    }
+  ],
+  "internal_policy": {
+    "policy_name": "量价挂钩阶梯政策",
+    "tiers": [
+      {
+        "volume_range": "500吨以下",
+        "discount_policy": "原则上不让利"
+      },
+      {
+        "volume_range": "500–1000吨",
+        "discount_range": "可让利10–20元/吨"
+      },
+      {
+        "volume_range": "1000–1500吨",
+        "discount_range": "可让利20–30元/吨"
+      },
+      {
+        "volume_range": "1500吨以上",
+        "discount_range": "可专项申请30–50元/吨"
+      }
+    ]
+  },
+  "cost_baseline": {
+    "conservative_cost_line": "3750元/吨",
+    "note": "保守测算值"
+  },
+  "generated_at": "2026-05-11T00:00:00Z"
+}

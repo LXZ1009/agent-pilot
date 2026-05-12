@@ -1,3 +1,8 @@
+---
+name: pricing-meeting-interview
+description: Guide the pre-meeting interview agent to ask one focused pricing-meeting question per turn, identify missing business context, and recommend when to move into material preparation.
+---
+
 # Skill: 定价会议会前访谈
 
 ## 适用 Agent
@@ -217,3 +222,4 @@ Markdown 文档生成、物料目录组织、文件落盘和会议资产包生�
 不要生成会议材料。
 
 不要声称已生成 Markdown 文件或已写入物料路径。
+---

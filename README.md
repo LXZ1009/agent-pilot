@@ -64,7 +64,7 @@ OPENAI_API_KEY=replace-me
 
 ```powershell
 conda activate agent-pilot
-uvicorn agent_pilot.api:app --reload --host 127.0.0.1 --port 8000
+uvicorn agent_pilot.api:app --host 127.0.0.1 --port 8000
 ```
 
 前端：

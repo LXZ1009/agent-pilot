@@ -1,1 +1,0 @@
-# meeting_asset_package_generation

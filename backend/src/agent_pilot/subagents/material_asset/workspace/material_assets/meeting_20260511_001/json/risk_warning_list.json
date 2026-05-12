@@ -1,0 +1,69 @@
+{
+  "asset_id": "risk_warning_list",
+  "asset_type": "risk_warning_list",
+  "version": "v1",
+  "risks": [
+    {
+      "risk_id": "risk_001",
+      "risk_category": "合同到期风险",
+      "severity": "高",
+      "affected_customer": "浙江建投交通基础设施有限公司",
+      "description": "合同2026-05-31到期，续约谈判窗口最晚5月中旬启动，5月20日前需形成内部决策口径。时间紧迫。",
+      "impact": "若未能及时达成续约，可能影响后续月度约1030吨的稳定采购量",
+      "mitigation": "立即启动谈判，主推3880–3900元/吨，底线≥3850元/吨",
+      "status": "active"
+    },
+    {
+      "risk_id": "risk_002",
+      "risk_category": "客户分流风险",
+      "severity": "高",
+      "affected_customer": "江苏交工材料有限公司",
+      "description": "竞品报价3820–3850元/吨，低于我方最近成交价3860元/吨。若竞品价格持续低于我方，存在20%–30%被分流的可能。",
+      "impact": "月均750吨采购量可能流失150–225吨，年化收入影响显著",
+      "mitigation": "控制在3830–3860元/吨区间+绑定配送和账期条件；底线价必须要求预付款或缩短账期",
+      "status": "active"
+    },
+    {
+      "risk_id": "risk_003",
+      "risk_category": "毛利压缩风险",
+      "severity": "中高",
+      "affected_customers": ["浙江建投交通基础设施有限公司", "江苏交工材料有限公司"],
+      "description": "统一成本线3750元/吨（保守测算）。浙江建投底线价3850元/吨对应毛利仅100元/吨（约2.67%）；江苏交工底线价3830元/吨对应毛利仅80元/吨（约2.13%）。",
+      "impact": "若执行底线价，毛利空间极薄，抗风险能力弱",
+      "mitigation": "严格控制不低于底线价；触及底线时必须同步绑定采购量、账期缩短、预付款或排他供货条件",
+      "status": "active"
+    },
+    {
+      "risk_id": "risk_004",
+      "risk_category": "审批合规风险",
+      "severity": "中",
+      "affected_customers": ["浙江建投交通基础设施有限公司", "江苏交工材料有限公司"],
+      "description": "两家客户触及底线价后均需升级审批。浙江建投低于3850需华东大区总经理审批；江苏交工低于3830建议走总部营销/价格委员会审批。",
+      "impact": "若现场承诺低于底线价且未履行审批流程，将违反会议规则",
+      "mitigation": "严格执行'低于底线价不得现场承诺'的会议规则；按审批层级执行",
+      "status": "active"
+    },
+    {
+      "risk_id": "risk_005",
+      "risk_category": "区域价格体系扰动风险",
+      "severity": "中",
+      "affected_customers": ["杭州路桥", "上海城建"],
+      "description": "杭州路桥、上海城建可能跟价。需明确哪些客户可以执行专项价格，哪些必须纳入区域统一审批。",
+      "impact": "若专项价格管理不当，可能导致区域价格体系混乱",
+      "mitigation": "在会议上明确专项价格适用范围和区域统一审批边界",
+      "status": "pending_info",
+      "missing_data": "杭州路桥、上海建城的压价诉求和竞品接触情况缺失"
+    },
+    {
+      "risk_id": "risk_006",
+      "risk_category": "信息缺口风险",
+      "severity": "中",
+      "description": "以下关键信息缺失：①张三本人具体职务；②华东大区当前库存水平；③两家客户框架协议中是否有最低采购量承诺或对赌条款；④其他区域客户的具体压价诉求或竞品接触情况。",
+      "impact": "信息不完整可能影响定价决策的准确性和全面性",
+      "mitigation": "会前补充收集缺失信息，或在会议中明确标注哪些决策基于不完整信息",
+      "status": "pending_info"
+    }
+  ],
+  "generated_at": "2026-05-11T00:00:00Z",
+  "source_refs": ["interview_card_zhangsan"]
+}

@@ -4,9 +4,46 @@ from pathlib import Path
 from typing import Any
 
 from deepagents import create_deep_agent
-from deepagents.backends.utils import create_file_data
+from deepagents.backends import FilesystemBackend
+from langchain_core.tools import tool
 
-from backend.src.agent_pilot.model_config import get_model
+from agent_pilot.meeting_contracts import (
+    get_default_pricing_interview_questions,
+    get_external_service_contracts,
+    get_interview_card_schema,
+    get_interview_state_machine,
+)
+from agent_pilot.model_config import get_model
+from agent_pilot.subagents.pre_meeting_interview.skill_loader import SKILL_SOURCES
+
+_LOCAL_SKILL_BACKEND = FilesystemBackend(
+    root_dir=Path(__file__).resolve().parent,
+    virtual_mode=True,
+)
+
+
+@tool
+def inspect_interview_state_machine() -> dict:
+    """查看会前访谈状态机定义。"""
+    return get_interview_state_machine()
+
+
+@tool
+def inspect_interview_card_schema() -> dict:
+    """查看会前访谈卡片 schema。"""
+    return get_interview_card_schema()
+
+
+@tool
+def inspect_external_service_contracts() -> dict:
+    """查看外部触达服务边界。"""
+    return get_external_service_contracts()
+
+
+@tool
+def get_default_interview_questions() -> list[str]:
+    """获取默认定价会议会前访谈问题。"""
+    return get_default_pricing_interview_questions()
 
 AGENT_NAME = "pre_meeting_interview_agent"
 AGENT_TITLE = "会前访谈 Agent"
@@ -17,13 +54,6 @@ AGENT_DESCRIPTION = (
 
 # DeepAgents native skill virtual path.
 # This path is resolved by SkillsMiddleware from the backend/filesystem.
-SKILL_SOURCES = [
-    "/skills/pre_meeting_interview/pricing_meeting_interview/"
-]
-
-_LOCAL_SKILL_DIR = Path(__file__).resolve().parent / "skills" / "pricing_meeting_interview"
-_LOCAL_SKILL_MD = _LOCAL_SKILL_DIR / "SKILL.md"
-_LOCAL_EXAMPLES_MD = _LOCAL_SKILL_DIR / "examples.md"
 
 
 SYSTEM_PROMPT = """\
@@ -60,29 +90,6 @@ SYSTEM_PROMPT = """\
 """
 
 
-def load_skill_files() -> dict[str, Any]:
-    """Load local skill files into DeepAgents' StateBackend virtual filesystem.
-
-    Use this helper from the runtime when invoking the LangGraph supervisor.
-
-    The virtual paths must match SKILL_SOURCES:
-        /skills/pre_meeting_interview/pricing_meeting_interview/SKILL.md
-        /skills/pre_meeting_interview/pricing_meeting_interview/examples.md
-    """
-    files: dict[str, Any] = {}
-
-    if _LOCAL_SKILL_MD.exists():
-        files[
-            "/skills/pre_meeting_interview/pricing_meeting_interview/SKILL.md"
-        ] = create_file_data(_LOCAL_SKILL_MD.read_text(encoding="utf-8"))
-
-    if _LOCAL_EXAMPLES_MD.exists():
-        files[
-            "/skills/pre_meeting_interview/pricing_meeting_interview/examples.md"
-        ] = create_file_data(_LOCAL_EXAMPLES_MD.read_text(encoding="utf-8"))
-
-    return files
-
 
 def build_sync_subagent(model: Any | None = None) -> dict[str, Any]:
     """Return a declarative synchronous SubAgent spec for the supervisor.
@@ -98,7 +105,12 @@ def build_sync_subagent(model: Any | None = None) -> dict[str, Any]:
         "description": AGENT_DESCRIPTION,
         "system_prompt": SYSTEM_PROMPT,
         "model": model or get_model(),
-        "tools": [],
+        "tools": [
+            inspect_interview_state_machine,
+            inspect_interview_card_schema,
+            inspect_external_service_contracts,
+            get_default_interview_questions,
+        ],
         "skills": SKILL_SOURCES,
     }
 
@@ -107,7 +119,14 @@ def build_graph(model: Any | None = None):
     return create_deep_agent(
         model=model or get_model(),
         system_prompt=SYSTEM_PROMPT,
-        skills=SKILL_SOURCES,
+        tools=[
+            inspect_interview_state_machine,
+            inspect_interview_card_schema,
+            inspect_external_service_contracts,
+            get_default_interview_questions,
+        ],
+        skills=["/skills/"],
+        backend=_LOCAL_SKILL_BACKEND,
         name=AGENT_NAME,
     )
 

@@ -1,0 +1,76 @@
+{
+  "asset_id": "price_execution_summary",
+  "cost_baseline": {
+    "conservative_cost_line": "3750元/吨",
+    "note": "保守测算值"
+  },
+  "customers": [
+    {
+      "customer_name": "浙江建投交通基础设施有限公司",
+      "pricing_analysis": {
+        "historical_avg": "3870–3890元/吨",
+        "latest_transaction_price": "3880元/吨",
+        "recommended_price": "3880–3900元/吨",
+        "floor_price": "≥3850元/吨",
+        "margin_at_floor_vs_cost": "100元/吨（基于3750元/吨成本线）",
+        "margin_at_latest_vs_cost": "130元/吨"
+      },
+      "volume_tier": "1000–1500吨（月均约1030吨）",
+      "applicable_discount_policy": "可让利20–30元/吨",
+      "effective_price_after_discount": "3850–3880元/吨（若按主推价上限3900让利30元）",
+      "negotiation_leverage": {
+        "if_price_3850_to_3860": "建议锁定采购量或压缩账期至15–20天",
+        "current_payment_terms": "月结30天"
+      }
+    },
+    {
+      "customer_name": "江苏交工材料有限公司",
+      "pricing_analysis": {
+        "historical_avg": "3840–3860元/吨",
+        "latest_transaction_price": "3860元/吨",
+        "recommended_price": "约3860元/吨",
+        "floor_price": ">3830元/吨",
+        "margin_at_floor_vs_cost": "80元/吨（基于3750元/吨成本线）",
+        "margin_at_latest_vs_cost": "110元/吨"
+      },
+      "volume_tier": "500–1000吨（月均约750吨）",
+      "applicable_discount_policy": "可让利10–20元/吨",
+      "effective_price_after_discount": "3840–3850元/吨（若按主推价3860让利10–20元）",
+      "negotiation_leverage": {
+        "if_price_at_floor_3830": "必须要求10%–20%预付款或账期缩短至30天内",
+        "current_payment_terms": "月结45天"
+      }
+    }
+  ],
+  "approval_triggers": [
+    {
+      "customer": "浙江建投",
+      "trigger_condition": "≤3850元/吨",
+      "required_approval": "大区销售负责人 + 财务测算确认"
+    },
+    {
+      "customer": "浙江建投",
+      "trigger_condition": "<3850元/吨",
+      "required_approval": "华东大区总经理审批"
+    },
+    {
+      "customer": "江苏交工",
+      "trigger_condition": "=3830元/吨",
+      "required_approval": "大区销售负责人 + 财务测算确认"
+    },
+    {
+      "customer": "江苏交工",
+      "trigger_condition": "<3830元/吨",
+      "required_approval": "总部营销/价格委员会审批"
+    }
+  ],
+  "volume_based_discount_policy": {
+    "tiers": [
+      {"range": "500吨以下", "policy": "原则上不让利"},
+      {"range": "500–1000吨", "policy": "可让利10–20元/吨"},
+      {"range": "1000–1500吨", "policy": "可让利20–30元/吨"},
+      {"range": "1500吨以上", "policy": "可专项申请30–50元/吨"}
+    ]
+  },
+  "generated_at": "2026-05-11T00:00:00Z"
+}

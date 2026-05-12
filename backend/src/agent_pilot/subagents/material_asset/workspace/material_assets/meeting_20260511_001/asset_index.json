@@ -1,0 +1,153 @@
+{
+  "asset_package_id": "meeting_20260511_001",
+  "asset_package_name": "华东大区定价会物料资产包",
+  "business_scenario": "重点客户价格策略与风险提示",
+  "target_object": "华东大区重点客户群",
+  "storage_path": "workspace/material_assets/meeting_20260511_001",
+  "package_status": "pending_info",
+  "main_asset": "markdown/meeting_brief.md",
+  "read_entry": {
+    "default_asset": "meeting_brief_md",
+    "read_mode": "index_first",
+    "recommended_read_order": [
+      "markdown/meeting_brief.md",
+      "json/meeting_overview_card.json",
+      "json/interview_cards.json",
+      "json/key_customer_list.json",
+      "json/price_execution_summary.json",
+      "json/risk_warning_list.json",
+      "json/five_minute_preview_payload.json",
+      "json/task_tracking_seed.json",
+      "json/missing_info.json",
+      "json/source_trace.json"
+    ]
+  },
+  "assets": [
+    {
+      "asset_id": "meeting_overview_card_json",
+      "asset_name": "会议概览卡片",
+      "asset_type": "json",
+      "file_path": "json/meeting_overview_card.json",
+      "business_usage": "meeting_preview",
+      "status": "completed",
+      "read_priority": 1,
+      "source_refs": ["interview_card_zhangsan"],
+      "tags": ["会议概览", "定价会议"]
+    },
+    {
+      "asset_id": "interview_cards_json",
+      "asset_name": "访谈卡片集合",
+      "asset_type": "json",
+      "file_path": "json/interview_cards.json",
+      "business_usage": "interview_reference",
+      "status": "completed",
+      "read_priority": 2,
+      "source_refs": ["interview_card_zhangsan"],
+      "tags": ["访谈", "张三"]
+    },
+    {
+      "asset_id": "key_customer_list_json",
+      "asset_name": "重点客户清单",
+      "asset_type": "json",
+      "file_path": "json/key_customer_list.json",
+      "business_usage": "customer_strategy",
+      "status": "completed",
+      "read_priority": 3,
+      "source_refs": ["interview_card_zhangsan"],
+      "tags": ["客户清单", "浙江建投", "江苏交工"]
+    },
+    {
+      "asset_id": "price_execution_summary_json",
+      "asset_name": "价格执行摘要",
+      "asset_type": "json",
+      "file_path": "json/price_execution_summary.json",
+      "business_usage": "pricing_decision",
+      "status": "completed",
+      "read_priority": 4,
+      "source_refs": ["interview_card_zhangsan"],
+      "tags": ["价格执行", "底价", "建议价"]
+    },
+    {
+      "asset_id": "competitor_moves_json",
+      "asset_name": "竞品动态",
+      "asset_type": "json",
+      "file_path": "json/competitor_moves.json",
+      "business_usage": "competitive_analysis",
+      "status": "completed",
+      "read_priority": 5,
+      "source_refs": ["interview_card_zhangsan"],
+      "tags": ["竞品", "威胁评估"]
+    },
+    {
+      "asset_id": "risk_warning_list_json",
+      "asset_name": "风险预警清单",
+      "asset_type": "json",
+      "file_path": "json/risk_warning_list.json",
+      "business_usage": "risk_management",
+      "status": "completed",
+      "read_priority": 6,
+      "source_refs": ["interview_card_zhangsan"],
+      "tags": ["风险", "预警"]
+    },
+    {
+      "asset_id": "five_minute_preview_payload_json",
+      "asset_name": "五分钟预览素材",
+      "asset_type": "json",
+      "file_path": "json/five_minute_preview_payload.json",
+      "business_usage": "notification_push",
+      "status": "completed",
+      "read_priority": 7,
+      "source_refs": ["interview_card_zhangsan"],
+      "tags": ["预览", "通知推送"]
+    },
+    {
+      "asset_id": "task_tracking_seed_json",
+      "asset_name": "任务跟踪种子数据",
+      "asset_type": "json",
+      "file_path": "json/task_tracking_seed.json",
+      "business_usage": "post_meeting_tracking",
+      "status": "completed",
+      "read_priority": 8,
+      "source_refs": ["interview_card_zhangsan"],
+      "tags": ["任务跟踪", "会后事项"]
+    },
+    {
+      "asset_id": "meeting_brief_md",
+      "asset_name": "会议简报",
+      "asset_type": "markdown",
+      "file_path": "markdown/meeting_brief.md",
+      "business_usage": "meeting_preview",
+      "status": "completed",
+      "read_priority": 9,
+      "source_refs": ["interview_card_zhangsan"],
+      "tags": ["会议简报", "定价会议"]
+    },
+    {
+      "asset_id": "source_trace_json",
+      "asset_name": "来源追溯",
+      "asset_type": "json",
+      "file_path": "source_trace.json",
+      "business_usage": "audit_and_review",
+      "status": "completed",
+      "read_priority": 10,
+      "source_refs": ["interview_card_zhangsan"],
+      "tags": ["溯源", "审计"]
+    },
+    {
+      "asset_id": "missing_info_json",
+      "asset_name": "信息缺口",
+      "asset_type": "json",
+      "file_path": "missing_info.json",
+      "business_usage": "data_gap_identification",
+      "status": "completed",
+      "read_priority": 11,
+      "source_refs": [],
+      "tags": ["缺失信息", "补数建议"]
+    }
+  ],
+  "metadata": {
+    "created_at": "2026-05-11T00:00:00Z",
+    "version": "v1",
+    "generated_by": "MaterialAssetAgent"
+  }
+}

@@ -1,0 +1,73 @@
+{
+  "asset_id": "price_execution_summary",
+  "asset_type": "price_execution_summary",
+  "version": "v1",
+  "unified_cost_line": {
+    "value": 3750,
+    "unit": "元/吨",
+    "calculation_basis": "保守测算"
+  },
+  "customers": [
+    {
+      "customer_name": "浙江建投交通基础设施有限公司",
+      "customer_slug": "zhejiang_jiantou",
+      "pricing_details": {
+        "official_price": null,
+        "note_official_price": "未提供官方价，仅知历史均价区间和最近成交价",
+        "historical_avg_range": {"low": 3870, "high": 3890, "unit": "元/吨"},
+        "latest_transaction_price": 3880,
+        "recommended_price_range": {"low": 3880, "high": 3900, "unit": "元/吨"},
+        "bottom_line": 3850,
+        "margin_at_bottom_line": 100,
+        "margin_percentage_at_bottom_line": "约2.67%",
+        "revenue_impact_if_reduced_to_bottom": {
+          "per_ton_reduction": 30,
+          "monthly_impact": {"amount": 31000, "unit": "元"},
+          "annual_impact": {"amount": 370000, "unit": "元"}
+        }
+      },
+      "volume_pricing_eligibility": {
+        "current_monthly_avg": 1030,
+        "tier": "1000–1500吨",
+        "allowed_discount_range": "20–30元/吨",
+        "note": "当前月均1030吨，处于可让利20–30元/吨的阶梯"
+      }
+    },
+    {
+      "customer_name": "江苏交工材料有限公司",
+      "customer_slug": "jiangsu_jiaogong",
+      "pricing_details": {
+        "official_price": null,
+        "note_official_price": "未提供官方价，仅知历史均价区间和最近成交价",
+        "historical_avg_range": {"low": 3840, "high": 3860, "unit": "元/吨"},
+        "latest_transaction_price": 3860,
+        "recommended_price": 3860,
+        "bottom_line": 3830,
+        "margin_at_bottom_line": 80,
+        "margin_percentage_at_bottom_line": "约2.13%",
+        "revenue_impact_if_reduced_to_bottom": {
+          "per_ton_reduction": 30,
+          "monthly_impact": {"amount": 22500, "unit": "元"},
+          "annual_impact": {"amount": 270000, "unit": "元"}
+        }
+      },
+      "volume_pricing_eligibility": {
+        "current_monthly_avg": 750,
+        "expected_renewal_range": {"low": 700, "high": 900},
+        "tier": "500–1000吨",
+        "allowed_discount_range": "10–20元/吨",
+        "note": "当前月均750吨，续签预期700–900吨/月，处于可让利10–20元/吨的阶梯"
+      }
+    }
+  ],
+  "volume_pricing_tiers_internal_reference": {
+    "tiers": [
+      {"range": "月度锁量500吨以下", "policy": "原则上不额外让利"},
+      {"range": "500–1000吨", "policy": "可让利10–20元/吨"},
+      {"range": "1000–1500吨", "policy": "可让利20–30元/吨"},
+      {"range": "1500吨以上", "policy": "可专项申请30–50元/吨"}
+    ]
+  },
+  "generated_at": "2026-05-11T00:00:00Z",
+  "source_refs": ["interview_card_zhangsan"]
+}

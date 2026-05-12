@@ -1,0 +1,32 @@
+{
+  "asset_id": "competitor_moves",
+  "competitors": [
+    {
+      "customer_context": "浙江建投交通基础设施有限公司",
+      "competitor_description": "区域主流品牌",
+      "price_range": "3860–3890元/吨",
+      "threat_level": "中高威胁",
+      "price_gap_vs_our_recommended": "-20至+10元/吨（我方主推价3880–3900）",
+      "price_gap_vs_our_floor": "+10至+40元/吨（我方底线≥3850）",
+      "analysis": "竞品报价与我方主推价区间重叠，对我方定价空间形成直接挤压。若我方坚持3880–3900元/吨主推价，部分客户可能倾向选择竞品低价端（3860–3870）。",
+      "impact_on_customer": "浙江建投月均采购约1030吨，体量较大，竞品价格接近我方底线价，存在切换风险"
+    },
+    {
+      "customer_context": "江苏交工材料有限公司",
+      "competitor_description": "华东本地贸易商/地炼渠道",
+      "price_range": "3820–3850元/吨",
+      "threat_level": "高威胁",
+      "price_gap_vs_our_recommended": "-40至-30元/吨（我方主推价约3860）",
+      "price_gap_vs_our_floor": "-10至+20元/吨（我方底线>3830）",
+      "competitor_characteristics": "阶段性低价抢单，非大型稳定直供品牌，供货能力不确定",
+      "analysis": "竞品价格显著低于我方主推价，最低可达3820元/吨，与我方底线价3830元/吨仅差10元。但竞品为非稳定品牌，供货能力存疑。",
+      "impact_on_customer": "江苏交工存在20%–30%订单分流风险，续签量预期700–900吨/月，需重点关注竞品阶段性抢单行为"
+    }
+  ],
+  "regional_summary": {
+    "overall_threat_assessment": "中等偏高",
+    "key_risk": "江苏交工面临的高威胁竞品（3820–3850元/吨）价格接近我方底线，且存在20%–30%订单分流风险",
+    "opportunity": "江苏交工竞品为非稳定品牌，供货能力不确定，可作为谈判中强调我方稳定供应优势的切入点"
+  },
+  "generated_at": "2026-05-11T00:00:00Z"
+}

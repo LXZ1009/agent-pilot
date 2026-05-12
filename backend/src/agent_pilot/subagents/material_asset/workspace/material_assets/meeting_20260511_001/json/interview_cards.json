@@ -1,0 +1,182 @@
+{
+  "asset_id": "interview_cards",
+  "asset_type": "interview_cards",
+  "version": "v1",
+  "interviews": [
+    {
+      "interview_id": "interview_card_zhangsan",
+      "interviewee_name": "张三",
+      "interviewee_title": "待补充（缺失字段）",
+      "interview_date": "2026-05-11",
+      "region": "华东大区",
+      "customers_covered": [
+        {
+          "customer_name": "浙江建投交通基础设施有限公司",
+          "customer_slug": "zhejiang_jiantou",
+          "contract_status": {
+            "type": "固定期限合同",
+            "expiry_date": "2026-05-31",
+            "renewal_window_start": "2026-05-15",
+            "internal_decision_deadline": "2026-05-20",
+            "urgency": "高"
+          },
+          "procurement_data": {
+            "monthly_avg_tons": 1030,
+            "monthly_breakdown": {
+              "2026-02": {"tons": 900, "note": "约"},
+              "2026-03": {"tons": 1050, "note": "约"},
+              "2026-04": {"tons": 1150, "note": "约"}
+            },
+            "trend": "上升"
+          },
+          "pricing": {
+            "historical_avg_range": {"low": 3870, "high": 3890, "unit": "元/吨"},
+            "latest_transaction_price": 3880,
+            "recommended_price_range": {"low": 3880, "high": 3900, "unit": "元/吨"},
+            "bottom_line": 3850,
+            "cost_line": 3750,
+            "margin_at_bottom_line": 100,
+            "revenue_impact_if_reduced": {
+              "per_month": {"amount": 31000, "unit": "元", "calculation_note": "从3880降至3850，月均1030吨"},
+              "per_year": {"amount": 370000, "unit": "元"}
+            }
+          },
+          "product_spec": {
+            "name": "道路石油沥青70# A级",
+            "packaging": "散装",
+            "delivery": "华东区域配送"
+          },
+          "payment_terms": {
+            "current": "月结30天",
+            "negotiation_option": "若压至3850–3860元/吨，建议压缩账期至15–20天或锁定采购量"
+          },
+          "competitor_info": {
+            "quote_range": {"low": 3860, "high": 3890, "unit": "元/吨"},
+            "threat_level": "中高",
+            "stability_assessment": "供货稳定性一般",
+            "source_description": "区域主流品牌供应商"
+          },
+          "approval_hierarchy": {
+            "≤3850元/吨": "大区销售负责人 + 财务测算确认",
+            "<3850元/吨": "华东大区总经理审批"
+          },
+          "negotiation_strategy": "若压至3850–3860元/吨，建议锁定采购量或压缩账期至15–20天",
+          "data_quality": {
+            "has_minimum_commitment_clause": "missing",
+            "has_veto_clause": "missing"
+          }
+        },
+        {
+          "customer_name": "江苏交工材料有限公司",
+          "customer_slug": "jiangsu_jiaogong",
+          "contract_status": {
+            "type": "框架协议下的单次采购报价",
+            "framework_expiry": "2026年6月中旬左右",
+            "urgency": "中（略低于浙江建投）",
+            "strategy_deadline": "5月下旬前明确报价策略"
+          },
+          "procurement_data": {
+            "monthly_avg_tons": 750,
+            "monthly_breakdown": {
+              "2026-02": {"tons": 650, "note": "约"},
+              "2026-03": {"tons": 780, "note": "约"},
+              "2026-04": {"tons": 820, "note": "约"}
+            },
+            "expected_renewal_range": {"low": 700, "high": 900, "unit": "吨/月"},
+            "trend": "上升"
+          },
+          "pricing": {
+            "historical_avg_range": {"low": 3840, "high": 3860, "unit": "元/吨"},
+            "latest_transaction_price": 3860,
+            "recommended_price": 3860,
+            "bottom_line": 3830,
+            "cost_line": 3750,
+            "margin_at_bottom_line": 80,
+            "revenue_impact_if_reduced": {
+              "per_ton_allowance": 30,
+              "per_month": {"amount": 22500, "unit": "元", "calculation_note": "从3860降至3830，月均750吨"},
+              "per_year": {"amount": 270000, "unit": "元"}
+            }
+          },
+          "product_spec": {
+            "name": "道路石油沥青70# A级",
+            "delivery_mode": "以项目批次供货为主"
+          },
+          "payment_terms": {
+            "current": "月结45天",
+            "negotiation_option": "若执行3830元/吨底线价，必须要求10%–20%预付款或账期缩短至30天内"
+          },
+          "diversion_risk": {
+            "risk_level": "高",
+            "estimated_diversion_rate": "20%–30%",
+            "condition": "若竞品价格持续低于我方"
+          },
+          "competitor_info": {
+            "quote_range": {"low": 3820, "high": 3850, "unit": "元/吨"},
+            "threat_level": "高",
+            "source_description": "华东本地贸易商/地炼渠道，阶段性低价抢单，非大型稳定直供品牌",
+            "response_strategy": "控制在3830–3860元/吨区间+绑定配送和账期条件"
+          },
+          "approval_hierarchy": {
+            "=3830元/吨": "大区销售负责人 + 财务测算确认",
+            "<3830元/吨": "总部营销/价格委员会审批"
+          },
+          "negotiation_strategy": "若执行3830元/吨底线价，必须要求10%–20%预付款或账期缩短至30天内",
+          "data_quality": {
+            "has_minimum_commitment_clause": "missing",
+            "has_veto_clause": "missing"
+          }
+        }
+      ],
+      "unified_cost_line": {
+        "value": 3750,
+        "unit": "元/吨",
+        "calculation_basis": "保守测算"
+      },
+      "volume_pricing_tiers": {
+        "description": "内部参考政策",
+        "tiers": [
+          {"range": "月度锁量500吨以下", "policy": "原则上不额外让利"},
+          {"range": "500–1000吨", "policy": "可让利10–20元/吨"},
+          {"range": "1000–1500吨", "policy": "可让利20–30元/吨"},
+          {"range": "1500吨以上", "policy": "可专项申请30–50元/吨"}
+        ]
+      },
+      "meeting_rules_suggested": [
+        "低于底线价不得现场承诺",
+        "触及底线必须同步绑定采购量、账期缩短、预付款或排他供货条件",
+        "按审批层级执行"
+      ],
+      "other_customer_dynamics": {
+        "mentioned_customers": ["杭州路桥", "上海城建"],
+        "assessment": "可能跟价，需明确哪些客户可以执行专项价格，哪些必须纳入区域统一审批",
+        "specific_pressure_requests": "missing",
+        "competitor_contact_details": "missing"
+      },
+      "missing_fields": [
+        {
+          "field": "interviewee_title",
+          "description": "张三本人的具体职务",
+          "priority": "medium"
+        },
+        {
+          "field": "inventory_level",
+          "description": "华东大区当前库存水平",
+          "priority": "high"
+        },
+        {
+          "field": "minimum_commitment_clauses",
+          "description": "两家客户框架协议中是否有最低采购量承诺或对赌条款",
+          "priority": "high"
+        },
+        {
+          "field": "other_customer_details",
+          "description": "其他区域客户（杭州路桥、上海城建）的具体压价诉求或竞品接触情况",
+          "priority": "medium"
+        }
+      ]
+    }
+  ],
+  "generated_at": "2026-05-11T00:00:00Z",
+  "source_refs": ["interview_card_zhangsan"]
+}

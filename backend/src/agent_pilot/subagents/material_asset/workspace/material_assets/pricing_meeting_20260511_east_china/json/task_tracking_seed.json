@@ -1,0 +1,57 @@
+{
+  "asset_id": "task_tracking_seed",
+  "meeting_id": "meeting_20260511_001",
+  "tasks": [
+    {
+      "task_id": "task_001",
+      "title": "浙江建投续约谈判执行",
+      "description": "在5月20日前形成内部决策口径，启动与浙江建投交通基础设施有限公司的续约谈判",
+      "priority": "critical",
+      "deadline": "2026-05-20",
+      "assigned_to": "待定（需明确责任人）",
+      "dependencies": ["确定最终报价区间", "审批流程预沟通"],
+      "status": "pending_meeting_decision"
+    },
+    {
+      "task_id": "task_002",
+      "title": "江苏交工续签方案制定",
+      "description": "制定江苏交工材料有限公司续签方案，考虑预付款比例（10%–20%）或账期压缩至30天内",
+      "priority": "high",
+      "deadline": "2026-06月中旬前",
+      "assigned_to": "待定（需明确责任人）",
+      "dependencies": ["竞品动态持续监控", "审批层级确认"],
+      "status": "pending_meeting_decision"
+    },
+    {
+      "task_id": "task_003",
+      "title": "补充缺失信息",
+      "description": "收集以下缺失信息：张三职务、华东大区库存水平、框架协议最低采购量承诺、其他客户压价诉求",
+      "priority": "medium",
+      "deadline": "2026-05-11（会前）",
+      "assigned_to": "待定",
+      "dependencies": [],
+      "status": "pending"
+    },
+    {
+      "task_id": "task_004",
+      "title": "竞品动态持续监控",
+      "description": "持续监控华东本地贸易商/地炼渠道对江苏交工的报价和抢单行为",
+      "priority": "medium",
+      "deadline": "ongoing",
+      "assigned_to": "待定",
+      "dependencies": [],
+      "status": "pending"
+    },
+    {
+      "task_id": "task_005",
+      "title": "其他客户情况收集",
+      "description": "收集杭州路桥、上海城建等其他客户的压价诉求或竞品接触情况",
+      "priority": "low",
+      "deadline": "2026-05-15",
+      "assigned_to": "待定",
+      "dependencies": [],
+      "status": "pending"
+    }
+  ],
+  "generated_at": "2026-05-11T00:00:00Z"
+}

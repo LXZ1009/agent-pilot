@@ -1,0 +1,29 @@
+{
+  "asset_id": "competitor_moves",
+  "asset_type": "competitor_moves",
+  "version": "v1",
+  "competitors": [
+    {
+      "customer_targeted": "浙江建投交通基础设施有限公司",
+      "competitor_description": "区域主流品牌供应商",
+      "quote_range": {"low": 3860, "high": 3890, "unit": "元/吨"},
+      "threat_level": "中高",
+      "stability_assessment": "供货稳定性一般",
+      "impact_on_us": "对我方浙江建投客户形成一定价格压力，但竞品供货稳定性不足构成我方优势",
+      "response_strategy": "主推3880–3900元/吨，底线≥3850元/吨；若需竞争可压缩账期至15–20天或锁定采购量"
+    },
+    {
+      "customer_targeted": "江苏交工材料有限公司",
+      "competitor_description": "华东本地贸易商/地炼渠道，阶段性低价抢单，非大型稳定直供品牌",
+      "quote_range": {"low": 3820, "high": 3850, "unit": "元/吨"},
+      "threat_level": "高",
+      "stability_assessment": "阶段性低价抢单，非稳定直供",
+      "diversion_risk": "若竞品价格持续低于我方，存在20%–30%被分流的可能",
+      "impact_on_us": "对我方江苏交工客户形成较大价格压力，且分流风险较高",
+      "response_strategy": "控制在3830–3860元/吨区间+绑定配送和账期条件；底线价3830元/吨必须要求10%–20%预付款或账期缩短至30天内"
+    }
+  ],
+  "competitive_landscape_summary": "竞品以华东本地贸易商/地炼渠道为主，采取阶段性低价策略。对江苏交工的威胁程度高于浙江建投。我方在配送稳定性和品牌信誉方面具备差异化优势。",
+  "generated_at": "2026-05-11T00:00:00Z",
+  "source_refs": ["interview_card_zhangsan"]
+}

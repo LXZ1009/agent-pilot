@@ -1,0 +1,74 @@
+{
+  "asset_package_id": "meeting_20260511_001",
+  "sources": [
+    {
+      "source_id": "interview_card_zhangsan",
+      "source_type": "interview_card",
+      "source_name": "张三会前访谈卡片",
+      "interviewee_name": "张三",
+      "interviewee_title": "待补充",
+      "coverage": "浙江建投交通基础设施有限公司、江苏交工材料有限公司及杭州路桥、上海城建动态",
+      "data_quality_note": "包含两家重点客户的完整价格、采购量、竞品、账期、审批层级信息；缺失张三职务、库存水平、对赌条款及其他客户详情"
+    }
+  ],
+  "claims": [
+    {
+      "claim_id": "claim_001",
+      "claim": "浙江建投交通基础设施有限公司合同于2026年5月31日到期，续约谈判窗口最晚5月中旬启动。",
+      "claim_type": "fact",
+      "source_refs": ["interview_card_zhangsan"],
+      "confidence": "high"
+    },
+    {
+      "claim_id": "claim_002",
+      "claim": "浙江建投近三月采购量呈上升趋势：2月约900吨、3月约1,050吨、4月约1,150吨，月均约1,030吨。",
+      "claim_type": "fact",
+      "source_refs": ["interview_card_zhangsan"],
+      "confidence": "high"
+    },
+    {
+      "claim_id": "claim_003",
+      "claim": "浙江建投历史均价区间为3,870–3,890元/吨，最近成交价3,880元/吨，底线价≥3,850元/吨。",
+      "claim_type": "fact",
+      "source_refs": ["interview_card_zhangsan"],
+      "confidence": "high"
+    },
+    {
+      "claim_id": "claim_004",
+      "claim": "若从3,880降至3,850元/吨，浙江建投月收入影响约3.1万元，年化约37万元。",
+      "claim_type": "judgement",
+      "source_refs": ["interview_card_zhangsan"],
+      "confidence": "high",
+      "calculation_basis": "基于月均1,030吨 × 30元/吨 = 30,900元/月 ≈ 3.1万元"
+    },
+    {
+      "claim_id": "claim_005",
+      "claim": "江苏交工材料有限公司框架协议于2026年6月中旬到期，月均采购约750吨。",
+      "claim_type": "fact",
+      "source_refs": ["interview_card_zhangsan"],
+      "confidence": "high"
+    },
+    {
+      "claim_id": "claim_006",
+      "claim": "江苏交工面临高威胁竞品（报价3,820–3,850元/吨），存在20%–30%被分流的可能。",
+      "claim_type": "judgement",
+      "source_refs": ["interview_card_zhangsan"],
+      "confidence": "medium"
+    },
+    {
+      "claim_id": "claim_007",
+      "claim": "统一成本线为3,750元/吨（保守测算）。",
+      "claim_type": "fact",
+      "source_refs": ["interview_card_zhangsan"],
+      "confidence": "high"
+    },
+    {
+      "claim_id": "claim_008",
+      "claim": "杭州路桥、上海城建可能跟价，需明确专项价格适用范围。",
+      "claim_type": "suggestion",
+      "source_refs": ["interview_card_zhangsan"],
+      "confidence": "low",
+      "note": "具体压价诉求和竞品接触情况缺失"
+    }
+  ]
+}
