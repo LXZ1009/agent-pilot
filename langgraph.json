@@ -1,13 +1,12 @@
 {
   "dependencies": ["./backend"],
   "graphs": {
-    "supervisor": "./backend/src/agent_pilot/deepagents_graphs.py:supervisor",
-    "pre_meeting_interview_agent": "./backend/src/agent_pilot/deepagents_graphs.py:pre_meeting_interview_agent",
-    "interview_structuring_agent": "./backend/src/agent_pilot/deepagents_graphs.py:interview_structuring_agent",
-    "material_asset_agent": "./backend/src/agent_pilot/deepagents_graphs.py:material_asset_agent",
-    "notification_agent": "./backend/src/agent_pilot/deepagents_graphs.py:notification_agent",
-    "task_tracking_agent": "./backend/src/agent_pilot/deepagents_graphs.py:task_tracking_agent",
-    "pricing_meeting_agent": "./backend/src/agent_pilot/deepagents_graphs.py:pricing_meeting_agent"
+    "supervisor": "./backend/src/agent_pilot/agent.py:graph",
+    "pre_meeting_interview_agent": "./backend/src/agent_pilot/subagents/pre_meeting_interview/agent.py:graph",
+    "interview_structuring_agent": "./backend/src/agent_pilot/subagents/interview_structuring/agent.py:graph",
+    "material_asset_agent": "./backend/src/agent_pilot/subagents/material_asset/agent.py:graph",
+    "notification_agent": "./backend/src/agent_pilot/subagents/notification/agent.py:graph",
+    "task_tracking_agent": "./backend/src/agent_pilot/subagents/task_tracking/agent.py:graph"
   },
   "env": ".env"
 }

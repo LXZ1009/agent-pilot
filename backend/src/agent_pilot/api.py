@@ -1,77 +1,71 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from pathlib import Path
-
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
 from dotenv import load_dotenv
 
-from agent_pilot.deepagents_runtime import DeepAgentsRuntime
-from agent_pilot.pricing_task_runtime import PricingTaskRuntime
 from agent_pilot.models import (
     AgentInfo,
-    AgentTask,
-    EventRecord,
+    AgentName,
     PricingMeetingRun,
     PricingMeetingRunContinueRequest,
     PricingMeetingRunCreateRequest,
-    ReportFileInfo,
-    RunCreateRequest,
-    RunRecord,
-    TaskUpdateRequest,
 )
-
+from agent_pilot.pricing_task_runtime import PricingTaskRuntime
 
 load_dotenv()
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
+AGENTS = [
+    AgentInfo(
+        name=AgentName.PRICING_MEETING,
+        title="定价会议主控 Agent",
+        description="唯一面向用户交互的主 Agent，负责理解、委派、汇总、追问和流程推进。",
+        capabilities=["用户交互", "任务编排", "结果汇总", "业务追问", "流程推进"],
+        business_domain="多 Agent 主控",
+    ),
+    AgentInfo(
+        name=AgentName.PRE_MEETING_INTERVIEW,
+        title="会前访谈 Agent",
+        description="同步子 Agent，负责生成访谈问题、完整性判断和追问建议。",
+        capabilities=["访谈问题", "完整性判断", "追问建议", "缺失字段识别"],
+        business_domain="会前访谈",
+    ),
+    AgentInfo(
+        name=AgentName.INTERVIEW_STRUCTURING,
+        title="访谈结构化 Agent",
+        description="同步子 Agent，负责把访谈回复整理成标准访谈卡片。",
+        capabilities=["访谈卡片", "事实提炼", "风险标记", "字段规范化"],
+        business_domain="访谈结构化",
+    ),
+    AgentInfo(
+        name=AgentName.MATERIAL_ASSET,
+        title="物料整理 Agent",
+        description="异步子 Agent，负责长耗时会议物料资产包生成。",
+        capabilities=["资产包生成", "风险清单", "客户摘要", "主持人预览素材"],
+        business_domain="会议物料",
+    ),
+    AgentInfo(
+        name=AgentName.NOTIFICATION,
+        title="通知预览 Agent",
+        description="同步子 Agent，负责生成会前预览和外部通知载荷契约。",
+        capabilities=["会前预览", "通知载荷", "卡片摘要", "外部服务契约"],
+        business_domain="通知预览",
+    ),
+    AgentInfo(
+        name=AgentName.TASK_TRACKING,
+        title="任务跟踪 Agent",
+        description="异步子 Agent，负责生成会后任务跟踪种子数据。",
+        capabilities=["行动项", "责任人建议", "截止时间建议", "复盘结构"],
+        business_domain="任务跟踪",
+    ),
+]
 
 
-def _resolve_virtual_report_path(report_path: str | None) -> Path | None:
-    if not report_path:
-        return None
-    if ".." in Path(report_path).parts:
-        return None
-    report_file = (PROJECT_ROOT / report_path.lstrip("/")).resolve()
-    try:
-        report_file.relative_to(PROJECT_ROOT)
-    except ValueError:
-        return None
-    return report_file
-
-
-def _report_file_info(run: RunRecord) -> ReportFileInfo:
-    report_file = _resolve_virtual_report_path(run.report_path)
-    content_url = f"/api/runs/{run.run_id}/artifacts/meeting-assets/content"
-    if report_file is None or not report_file.exists() or not report_file.is_file():
-        return ReportFileInfo(
-            exists=False,
-            name="meeting-asset-package.json",
-            display_path=run.report_path or "",
-            content_url=None,
-        )
-
-    stat = report_file.stat()
-    return ReportFileInfo(
-        exists=True,
-        name=report_file.name,
-        display_path=run.report_path or report_file.name,
-        content_url=content_url,
-        size_bytes=stat.st_size,
-        modified_at=datetime.fromtimestamp(stat.st_mtime, timezone.utc),
-    )
-
-
-def create_app(
-    runtime: DeepAgentsRuntime | None = None,
-    pricing_task_runtime: PricingTaskRuntime | None = None,
-) -> FastAPI:
+def create_app(pricing_task_runtime: PricingTaskRuntime | None = None) -> FastAPI:
     app = FastAPI(
         title="Agent Pilot API",
-        description="DeepAgents async subagents POC backend",
-        version="0.1.0",
+        description="Multi-agent collaboration platform backend; pricing meeting is the validation scenario.",
+        version="0.2.0",
     )
     app.add_middleware(
         CORSMiddleware,
@@ -80,40 +74,15 @@ def create_app(
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    app.state.runtime = runtime or DeepAgentsRuntime()
     app.state.pricing_task_runtime = pricing_task_runtime or PricingTaskRuntime()
 
     @app.get("/api/health")
     async def health() -> dict[str, str]:
         return {"status": "ok"}
 
-    @app.get("/api/runs/{run_id}/artifacts/meeting-assets", response_model=ReportFileInfo)
-    async def get_meeting_asset_info(run_id: str) -> ReportFileInfo:
-        run = await app.state.runtime.get_run(run_id)
-        if run is None:
-            raise HTTPException(status_code=404, detail="Run not found")
-        return _report_file_info(run)
-
-    @app.get("/api/runs/{run_id}/artifacts/meeting-assets/content")
-    async def get_meeting_asset_content(run_id: str) -> FileResponse:
-        run = await app.state.runtime.get_run(run_id)
-        if run is None:
-            raise HTTPException(status_code=404, detail="Run not found")
-        report_file = _resolve_virtual_report_path(run.report_path)
-        if report_file is None or not report_file.exists() or not report_file.is_file():
-            raise HTTPException(status_code=404, detail="Financial report file not found")
-        return FileResponse(
-            report_file,
-            media_type="application/json",
-            headers={
-                "Cache-Control": "no-store",
-                "X-Content-Type-Options": "nosniff",
-            },
-        )
-
     @app.get("/api/agents", response_model=list[AgentInfo])
     async def list_agents() -> list[AgentInfo]:
-        return app.state.runtime.agents
+        return AGENTS
 
     @app.post(
         "/api/pricing-meeting/runs",
@@ -144,54 +113,17 @@ def create_app(
             )
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
-        except RuntimeError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
 
-    @app.post("/api/runs", response_model=RunRecord, status_code=status.HTTP_201_CREATED)
-    async def create_run(payload: RunCreateRequest) -> RunRecord:
-        return await app.state.runtime.create_run(
-            payload.message,
-            payload.agents,
-            payload.meeting_context,
-        )
-
-    @app.get("/api/runs", response_model=list[RunRecord])
-    async def list_runs() -> list[RunRecord]:
-        return await app.state.runtime.list_runs()
-
-    @app.get("/api/runs/{run_id}", response_model=RunRecord)
-    async def get_run(run_id: str) -> RunRecord:
-        run = await app.state.runtime.get_run(run_id)
-        if run is None:
-            raise HTTPException(status_code=404, detail="Run not found")
-        return run
-
-    @app.get("/api/runs/{run_id}/events", response_model=list[EventRecord])
-    async def get_events(run_id: str) -> list[EventRecord]:
-        events = await app.state.runtime.list_events(run_id)
-        if events is None:
-            raise HTTPException(status_code=404, detail="Run not found")
-        return events
-
-    @app.post("/api/runs/{run_id}/tasks/{task_id}/updates", response_model=AgentTask)
-    async def update_task(
-        run_id: str,
-        task_id: str,
-        payload: TaskUpdateRequest,
-    ) -> AgentTask:
+    @app.get("/api/pricing-meeting/runs/{run_id}", response_model=PricingMeetingRun)
+    async def get_pricing_meeting_run(run_id: str) -> PricingMeetingRun:
         try:
-            return await app.state.runtime.update_task(run_id, task_id, payload.instruction)
+            return await app.state.pricing_task_runtime.get_pricing_meeting_run(run_id)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
-        except RuntimeError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
 
-    @app.post("/api/runs/{run_id}/tasks/{task_id}/cancel", response_model=AgentTask)
-    async def cancel_task(run_id: str, task_id: str) -> AgentTask:
-        try:
-            return await app.state.runtime.cancel_task(run_id, task_id)
-        except KeyError as exc:
-            raise HTTPException(status_code=404, detail=str(exc)) from exc
+    @app.get("/api/pricing-meeting/runs", response_model=list[PricingMeetingRun])
+    async def list_pricing_meeting_runs() -> list[PricingMeetingRun]:
+        return await app.state.pricing_task_runtime.list_pricing_meeting_runs()
 
     return app
 
