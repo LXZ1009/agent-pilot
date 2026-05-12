@@ -1,8 +1,10 @@
 export type AgentName =
-  | 'main_metric_agent'
-  | 'partner_aging_agent'
-  | 'partner_balance_agent'
-  | 'finance_report_agent';
+  | 'pre_meeting_interview_agent'
+  | 'interview_structuring_agent'
+  | 'material_asset_agent'
+  | 'notification_agent'
+  | 'task_tracking_agent'
+  | 'pricing_meeting_agent';
 export type TaskStatus = 'queued' | 'running' | 'succeeded' | 'cancelled' | 'error';
 export type StatusTone = 'neutral' | 'active' | 'success' | 'muted' | 'danger';
 
@@ -15,23 +17,59 @@ export interface AgentInfo {
   business_domain: string | null;
 }
 
-export interface MetricValue {
-  name: string;
-  value: string;
-  unit: string | null;
-  note: string | null;
+export interface MeetingContext {
+  meeting_id: string | null;
+  meeting_title: string | null;
+  scheduled_start: string | null;
+  host_name: string | null;
+  participant_name: string | null;
+  business_topic: string | null;
+  source: string | null;
+  business_payload: Record<string, unknown>;
 }
 
-export interface DomainAnalysis {
-  domain: string;
-  table_name: string;
+export interface Interviewee {
+  interviewee_id?: string | null;
+  name: string;
+  role?: string | null;
+  region?: string | null;
+}
+
+export type PricingMeetingRunStatus = 'running' | 'waiting_for_input' | 'completed' | 'error';
+
+export interface PricingMeetingAsyncJob {
+  job_id: string;
+  agent: AgentName;
   status: string;
-  period: string | null;
-  sql: string | null;
-  row_count: number | null;
-  metrics: MetricValue[];
-  findings: string[];
-  risks: string[];
+  action: string;
+  summary: string;
+}
+
+export interface PricingMeetingRunCreatePayload {
+  command: string;
+  meeting_context: Partial<MeetingContext>;
+  interviewees: Interviewee[];
+}
+
+export interface PricingMeetingRunContinuePayload {
+  content: string;
+}
+
+export interface PricingMeetingRun {
+  run_id: string;
+  command: string;
+  meeting_context: MeetingContext;
+  status: PricingMeetingRunStatus;
+  active_agent: string;
+  pending_agents: string[];
+  blocked_by: string[];
+  coordinator_note: string;
+  async_jobs: PricingMeetingAsyncJob[];
+  asset_package: Record<string, unknown> | null;
+  preview_card: Record<string, unknown> | null;
+  timeline: Record<string, unknown>[];
+  created_at: string;
+  updated_at: string;
 }
 
 export interface AgentTask {
@@ -44,7 +82,7 @@ export interface AgentTask {
   result: string | null;
   error: string | null;
   updates: string[];
-  analysis: DomainAnalysis | null;
+  analysis: unknown | null;
   created_at: string;
   started_at: string | null;
   completed_at: string | null;
@@ -64,7 +102,9 @@ export interface EventRecord {
 export interface RunRecord {
   run_id: string;
   message: string;
+  meeting_context: MeetingContext | null;
   requested_agents: AgentName[];
+  auto_route: boolean;
   supervisor_note: string;
   report_path: string | null;
   tasks: AgentTask[];
@@ -76,6 +116,7 @@ export interface RunRecord {
 export interface CreateRunPayload {
   message: string;
   agents: AgentName[];
+  meeting_context?: Partial<MeetingContext>;
 }
 
 export interface RunSummary {
@@ -94,13 +135,37 @@ export interface ReportFileInfo {
   modified_at: string | null;
 }
 
-const API_ROOT = '/api';
+const API_ROOT = import.meta.env.VITE_API_ROOT ?? '/api';
 
-export function buildCreateRunPayload(message: string, agents: AgentName[]): CreateRunPayload {
+export function buildPricingMeetingRunCreatePayload(
+  command: string,
+  meetingContext: Partial<MeetingContext>,
+  interviewees: Interviewee[]
+): PricingMeetingRunCreatePayload {
+  return {
+    command,
+    meeting_context: meetingContext,
+    interviewees
+  };
+}
+
+export function buildCreateRunPayload(
+  message: string,
+  agents: AgentName[],
+  meetingContext?: Partial<MeetingContext>
+): CreateRunPayload {
   return {
     message,
-    agents: [...new Set(agents)]
+    agents: [...new Set(agents)],
+    ...(meetingContext ? { meeting_context: meetingContext } : {})
   };
+}
+
+export function buildAutoRouteRunPayload(
+  message: string,
+  meetingContext: Partial<MeetingContext>
+): CreateRunPayload {
+  return buildCreateRunPayload(message, [], meetingContext);
 }
 
 export function statusTone(status: TaskStatus): StatusTone {
@@ -168,6 +233,23 @@ export function createRun(payload: CreateRunPayload): Promise<RunRecord> {
   });
 }
 
+export function createPricingMeetingRun(payload: PricingMeetingRunCreatePayload): Promise<PricingMeetingRun> {
+  return requestJson<PricingMeetingRun>('/pricing-meeting/runs', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+}
+
+export function continuePricingMeetingRun(
+  runId: string,
+  payload: PricingMeetingRunContinuePayload
+): Promise<PricingMeetingRun> {
+  return requestJson<PricingMeetingRun>(`/pricing-meeting/runs/${runId}/continue`, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+}
+
 export function getRun(runId: string): Promise<RunRecord> {
   return requestJson<RunRecord>(`/runs/${runId}`);
 }
@@ -176,8 +258,8 @@ export function getEvents(runId: string): Promise<EventRecord[]> {
   return requestJson<EventRecord[]>(`/runs/${runId}/events`);
 }
 
-export function getRunReport(runId: string): Promise<ReportFileInfo> {
-  return requestJson<ReportFileInfo>(`/runs/${runId}/reports/finance`);
+export function getMeetingAssets(runId: string): Promise<ReportFileInfo> {
+  return requestJson<ReportFileInfo>(`/runs/${runId}/artifacts/meeting-assets`);
 }
 
 export function reportContentUrl(info: ReportFileInfo, version: number): string | null {

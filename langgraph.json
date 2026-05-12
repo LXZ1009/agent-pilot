@@ -2,10 +2,12 @@
   "dependencies": ["./backend"],
   "graphs": {
     "supervisor": "./backend/src/agent_pilot/deepagents_graphs.py:supervisor",
-    "main_metric_agent": "./backend/src/agent_pilot/deepagents_graphs.py:main_metric_agent",
-    "partner_aging_agent": "./backend/src/agent_pilot/deepagents_graphs.py:partner_aging_agent",
-    "partner_balance_agent": "./backend/src/agent_pilot/deepagents_graphs.py:partner_balance_agent",
-    "finance_report_agent": "./backend/src/agent_pilot/deepagents_graphs.py:finance_report_agent"
+    "pre_meeting_interview_agent": "./backend/src/agent_pilot/deepagents_graphs.py:pre_meeting_interview_agent",
+    "interview_structuring_agent": "./backend/src/agent_pilot/deepagents_graphs.py:interview_structuring_agent",
+    "material_asset_agent": "./backend/src/agent_pilot/deepagents_graphs.py:material_asset_agent",
+    "notification_agent": "./backend/src/agent_pilot/deepagents_graphs.py:notification_agent",
+    "task_tracking_agent": "./backend/src/agent_pilot/deepagents_graphs.py:task_tracking_agent",
+    "pricing_meeting_agent": "./backend/src/agent_pilot/deepagents_graphs.py:pricing_meeting_agent"
   },
   "env": ".env"
 }

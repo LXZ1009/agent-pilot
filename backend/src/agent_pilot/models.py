@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from enum import StrEnum
-from typing import Annotated
+from typing import Annotated, Any
 
 from pydantic import BaseModel, Field
 
@@ -12,10 +12,12 @@ def utc_now() -> datetime:
 
 
 class AgentName(StrEnum):
-    MAIN_METRIC = "main_metric_agent"
-    PARTNER_AGING = "partner_aging_agent"
-    PARTNER_BALANCE = "partner_balance_agent"
-    FINANCE_REPORT = "finance_report_agent"
+    PRE_MEETING_INTERVIEW = "pre_meeting_interview_agent"
+    INTERVIEW_STRUCTURING = "interview_structuring_agent"
+    MATERIAL_ASSET = "material_asset_agent"
+    NOTIFICATION = "notification_agent"
+    TASK_TRACKING = "task_tracking_agent"
+    PRICING_MEETING = "pricing_meeting_agent"
 
 
 class TaskStatus(StrEnum):
@@ -23,6 +25,13 @@ class TaskStatus(StrEnum):
     RUNNING = "running"
     SUCCEEDED = "succeeded"
     CANCELLED = "cancelled"
+    ERROR = "error"
+
+
+class PricingMeetingRunStatus(StrEnum):
+    RUNNING = "running"
+    WAITING_FOR_INPUT = "waiting_for_input"
+    COMPLETED = "completed"
     ERROR = "error"
 
 
@@ -45,13 +54,67 @@ class AgentInfo(BaseModel):
     business_domain: str | None = None
 
 
+class MeetingContext(BaseModel):
+    meeting_id: str | None = None
+    meeting_title: str | None = None
+    scheduled_start: str | None = None
+    host_name: str | None = None
+    participant_name: str | None = None
+    business_topic: str | None = None
+    source: str | None = None
+    business_payload: dict[str, Any] = Field(default_factory=dict)
+
+
 class RunCreateRequest(BaseModel):
     message: Annotated[str, Field(min_length=1, max_length=4000)]
     agents: list[AgentName] = Field(default_factory=list)
+    meeting_context: MeetingContext | None = None
 
 
 class TaskUpdateRequest(BaseModel):
     instruction: Annotated[str, Field(min_length=1, max_length=1000)]
+
+
+class Interviewee(BaseModel):
+    interviewee_id: str | None = None
+    name: Annotated[str, Field(min_length=1, max_length=100)]
+    role: str | None = None
+    region: str | None = None
+
+
+class PricingMeetingRunCreateRequest(BaseModel):
+    command: Annotated[str, Field(min_length=1, max_length=4000)]
+    meeting_context: MeetingContext
+    interviewees: list[Interviewee] = Field(min_length=1, max_length=20)
+
+
+class PricingMeetingRunContinueRequest(BaseModel):
+    content: Annotated[str, Field(min_length=1, max_length=4000)]
+
+
+class PricingMeetingAsyncJob(BaseModel):
+    job_id: str
+    agent: AgentName
+    status: str
+    action: str
+    summary: str
+
+
+class PricingMeetingRun(BaseModel):
+    run_id: str
+    command: str
+    meeting_context: MeetingContext
+    status: PricingMeetingRunStatus
+    active_agent: str
+    pending_agents: list[str] = Field(default_factory=list)
+    blocked_by: list[str] = Field(default_factory=list)
+    coordinator_note: str
+    async_jobs: list[PricingMeetingAsyncJob] = Field(default_factory=list)
+    asset_package: dict[str, Any] | None = None
+    preview_card: dict[str, Any] | None = None
+    timeline: list[dict[str, Any]] = Field(default_factory=list)
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
 
 
 class ReportFileInfo(BaseModel):
@@ -73,7 +136,7 @@ class AgentTask(BaseModel):
     result: str | None = None
     error: str | None = None
     updates: list[str] = Field(default_factory=list)
-    analysis: "DomainAnalysis | None" = None
+    analysis: dict[str, Any] | None = None
     created_at: datetime = Field(default_factory=utc_now)
     started_at: datetime | None = None
     completed_at: datetime | None = None
@@ -93,32 +156,15 @@ class EventRecord(BaseModel):
 class RunRecord(BaseModel):
     run_id: str
     message: str
+    meeting_context: MeetingContext | None = None
     requested_agents: list[AgentName]
+    auto_route: bool = False
     supervisor_note: str
     report_path: str | None = None
     tasks: list[AgentTask]
     events: list[EventRecord] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
-
-
-class MetricValue(BaseModel):
-    name: str
-    value: str
-    unit: str | None = None
-    note: str | None = None
-
-
-class DomainAnalysis(BaseModel):
-    domain: str
-    table_name: str
-    status: str
-    period: str | None = None
-    sql: str | None = None
-    row_count: int | None = None
-    metrics: list[MetricValue] = Field(default_factory=list)
-    findings: list[str] = Field(default_factory=list)
-    risks: list[str] = Field(default_factory=list)
 
 
 AgentTask.model_rebuild()

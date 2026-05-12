@@ -1,536 +1,494 @@
 import {
   AlertTriangle,
-  BarChart3,
+  Bot,
+  Box,
   CheckCircle2,
+  ChevronRight,
   Clock3,
-  Eye,
-  ExternalLink,
-  FileText,
-  Play,
+  Code2,
+  FileJson,
+  MessageSquareText,
   RefreshCw,
-  Search,
-  Square,
-  X,
-  XCircle
+  Send,
+  TerminalSquare,
+  UserRound,
+  Workflow
 } from 'lucide-react';
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, ReactNode, useMemo, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 import {
-  AgentInfo,
-  AgentName,
-  AgentTask,
-  EventRecord,
-  ReportFileInfo,
-  RunRecord,
-  buildCreateRunPayload,
-  cancelTask,
-  createRun,
-  getEvents,
-  getRun,
-  getRunReport,
-  listAgents,
-  reportContentUrl,
-  summarizeRun
+  Interviewee,
+  MeetingContext,
+  PricingMeetingRun,
+  buildPricingMeetingRunCreatePayload,
+  continuePricingMeetingRun,
+  createPricingMeetingRun
 } from './api';
+import {
+  TimelineBlock,
+  buildArtifactBlocks,
+  buildErrorBlock,
+  buildTimelineFromPricingRun,
+  buildUserCommandBlock,
+  parseWorkbenchCommand
+} from './workbench';
 
-const SAMPLE_PROMPT =
-  '请基于最新期间分析整体财务表现、往来账龄风险和合作伙伴余额情况，输出综合经营分析报告。';
+interface WorkbenchContextState {
+  meetingId: string;
+  task: string;
+  meetingTitle: string;
+  scheduledStart: string;
+  hostName: string;
+  businessTopic: string;
+  intervieweesText: string;
+}
 
-const AGENT_LABELS: Record<AgentName, string> = {
-  main_metric_agent: '财务主指标',
-  partner_aging_agent: '往来账龄',
-  partner_balance_agent: '往来余额',
-  finance_report_agent: '综合报告'
+const INITIAL_CONTEXT: WorkbenchContextState = {
+  meetingId: 'meeting_20260511_001',
+  task: '15:30 每日会前访谈',
+  meetingTitle: '华东大区定价会',
+  scheduledStart: '2026-05-11 15:30',
+  hostName: '主持人A',
+  businessTopic: '重点客户价格策略与风险提示',
+  intervieweesText: 'u1,张三,大区负责人,华东大区'
 };
 
-const AGENT_TABLES: Record<AgentName, string> = {
-  main_metric_agent: 'ods_fin_main_metric_raw',
-  partner_aging_agent: 'ods_fin_partner_aging_raw',
-  partner_balance_agent: 'ods_fin_partner_balance_raw',
-  finance_report_agent: '综合分析'
-};
-
-const STATUS_LABELS: Record<AgentTask['status'], string> = {
-  queued: '等待中',
-  running: '分析中',
-  succeeded: '已完成',
-  cancelled: '已取消',
-  error: '失败'
-};
-
-function statusIcon(status: AgentTask['status']) {
-  if (status === 'succeeded') return <CheckCircle2 size={17} />;
-  if (status === 'error') return <AlertTriangle size={17} />;
-  if (status === 'cancelled') return <XCircle size={17} />;
-  if (status === 'running') return <RefreshCw size={17} className="spin" />;
-  return <Clock3 size={17} />;
+function MarkdownBlock({ content }: { content: string }) {
+  return (
+    <div className="chat-markdown">
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+    </div>
+  );
 }
 
-function formatTime(value: string | null): string {
-  if (!value) return '-';
-  return new Intl.DateTimeFormat('zh-CN', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  }).format(new Date(value));
+function parseInterviewees(text: string): Interviewee[] {
+  return text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line, index) => {
+      const [id, name, role, region] = line.split(',').map((part) => part.trim());
+      return {
+        interviewee_id: id || `u${index + 1}`,
+        name: name || id || `访谈人${index + 1}`,
+        role: role || '访谈对象',
+        region: region || ''
+      };
+    });
 }
 
-function formatDateTime(value: string | null): string {
-  if (!value) return '-';
-  return new Intl.DateTimeFormat('zh-CN', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  }).format(new Date(value));
-}
-
-function formatBytes(value: number | null): string {
-  if (value === null) return '-';
-  if (value < 1024) return `${value} B`;
-  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
-  return `${(value / 1024 / 1024).toFixed(1)} MB`;
-}
-
-function getAnswerTask(run: RunRecord | null): AgentTask | null {
-  if (!run) return null;
-  return run.tasks.find((task) => task.agent === 'finance_report_agent') ?? null;
-}
-
-function getAnswerText(run: RunRecord | null): string {
-  const answerTask = getAnswerTask(run);
-  if (!run || !answerTask) {
-    return '输入一个财务问题，系统会调用对应业务域子代理查询真实数据，并在这里生成综合回答。';
-  }
-  if (answerTask.error) return localizeMessage(answerTask.error);
-  if (answerTask.result) return answerTask.result;
-  if (run.tasks.some((task) => task.status === 'running' || task.status === 'queued')) {
-    return '正在调度业务域子代理查询数据，综合报告生成后会显示在这里。';
-  }
-  return '暂无回答结果。';
-}
-
-function getAnswerState(run: RunRecord | null): AgentTask['status'] | 'empty' {
-  const answerTask = getAnswerTask(run);
-  if (!answerTask) return 'empty';
-  return answerTask.status;
-}
-
-function latestTaskEvent(events: EventRecord[], task: AgentTask): EventRecord | null {
-  for (let index = events.length - 1; index >= 0; index -= 1) {
-    const event = events[index];
-    if (event.task_id === task.task_id || event.agent === task.agent) {
-      return event;
+function buildMeetingContext(context: WorkbenchContextState): Partial<MeetingContext> {
+  return {
+    meeting_id: context.meetingId,
+    meeting_title: context.meetingTitle,
+    scheduled_start: context.scheduledStart,
+    host_name: context.hostName,
+    business_topic: context.businessTopic,
+    source: 'transparent_agent_workbench',
+    business_payload: {
+      trigger: 'command_composer',
+      expected_flow:
+        'PricingMeetingAgent receives command intent, then coordinates interview, material and preview agents.'
     }
-  }
-  return null;
+  };
 }
 
-function localizeMessage(message: string): string {
+function prettyJson(value: unknown): string {
+  return JSON.stringify(value, null, 2);
+}
+
+function localizeError(message: string): string {
   if (message.includes('OPENAI_API_KEY is required')) {
-    return '缺少 OPENAI_API_KEY，当前无法发起真实 OpenAI 模型请求。请在 .env 中配置后重启后端。';
+    return '缺少 OPENAI_API_KEY，当前无法发起真实模型请求。请在 .env 中配置后重启后端。';
   }
-  if (message.includes('DeepAgents run created')) return '已创建问数任务。';
-  if (message.includes('delegated through DeepAgents')) return '已交给 DeepAgents 子代理执行。';
-  if (message.includes('completed via DeepAgents')) return '子代理分析已完成。';
-  if (message.includes('failed:')) return message.replace('failed:', '执行失败：');
   return message;
 }
 
+function blockIcon(block: TimelineBlock): ReactNode {
+  if (block.type === 'user_command' || block.type === 'interview_reply') return <UserRound size={18} />;
+  if (block.type === 'artifact') return <FileJson size={18} />;
+  if (block.type === 'async_job') return <Workflow size={18} />;
+  if (block.type === 'error') return <AlertTriangle size={18} />;
+  return <Bot size={18} />;
+}
+
+function statusIcon(status: string | undefined) {
+  if (status === 'completed' || status === 'succeeded') return <CheckCircle2 size={16} />;
+  if (status === 'error' || status === 'failed') return <AlertTriangle size={16} />;
+  if (status === 'running' || status === 'in_progress') return <RefreshCw size={16} className="spin" />;
+  return <Clock3 size={16} />;
+}
+
+function sessionStatusText(status: string): string {
+  if (status === 'completed') return '完成';
+  if (status === 'error') return '异常';
+  if (status === 'running') return '运行中';
+  return '等待回复';
+}
+
+function resolveArtifactTitle(value: unknown): string {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return 'artifact';
+  const record = value as Record<string, unknown>;
+  return String(record.asset_package_id ?? record.title ?? record.preview_id ?? 'artifact');
+}
+
 export default function App() {
-  const [agents, setAgents] = useState<AgentInfo[]>([]);
-  const [selectedAgents, setSelectedAgents] = useState<AgentName[]>([
-    'main_metric_agent',
-    'partner_aging_agent',
-    'partner_balance_agent'
-  ]);
-  const [message, setMessage] = useState(SAMPLE_PROMPT);
-  const [run, setRun] = useState<RunRecord | null>(null);
-  const [events, setEvents] = useState<EventRecord[]>([]);
+  const [context, setContext] = useState<WorkbenchContextState>(INITIAL_CONTEXT);
+  const [pricingRun, setPricingRun] = useState<PricingMeetingRun | null>(null);
+  const [assetPackage, setAssetPackage] = useState<Record<string, unknown> | null>(null);
+  const [previewCard, setPreviewCard] = useState<Record<string, unknown> | null>(null);
+  const [userBlocks, setUserBlocks] = useState<TimelineBlock[]>([]);
+  const [errorBlocks, setErrorBlocks] = useState<TimelineBlock[]>([]);
+  const [composer, setComposer] = useState('/prepare meeting_20260511_001 @张三');
+  const [activeTarget, setActiveTarget] = useState<string | null>(null);
+  const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [reportInfo, setReportInfo] = useState<ReportFileInfo | null>(null);
-  const [reportLoading, setReportLoading] = useState(false);
-  const [reportError, setReportError] = useState<string | null>(null);
-  const [reportVersion, setReportVersion] = useState(Date.now());
-  const [reportPreviewOpen, setReportPreviewOpen] = useState(false);
 
-  const summary = useMemo(() => (run ? summarizeRun(run) : null), [run]);
-  const answerText = useMemo(() => getAnswerText(run), [run]);
-  const answerState = useMemo(() => getAnswerState(run), [run]);
-  const reportUrl = useMemo(
-    () => (reportInfo ? reportContentUrl(reportInfo, reportVersion) : null),
-    [reportInfo, reportVersion]
+  const meetingContext = useMemo(() => buildMeetingContext(context), [context]);
+  const interviewees = useMemo(() => parseInterviewees(context.intervieweesText), [context.intervieweesText]);
+  const runEventBlocks = useMemo<TimelineBlock[]>(
+    () => (pricingRun ? buildTimelineFromPricingRun(pricingRun) : []),
+    [pricingRun]
   );
-  const selectableAgents = agents.filter((agent) => agent.name !== 'finance_report_agent');
-  const canCancel = run?.tasks.some((task) => ['queued', 'running'].includes(task.status)) ?? false;
+  const runBlocks = useMemo(
+    () => [
+      ...runEventBlocks,
+      ...buildArtifactBlocks(assetPackage, previewCard),
+      ...errorBlocks
+    ],
+    [assetPackage, errorBlocks, previewCard, runEventBlocks]
+  );
+  const timelineBlocks = useMemo(() => [...userBlocks, ...runBlocks], [runBlocks, userBlocks]);
+  const selectedBlock = timelineBlocks.find((block) => block.id === selectedBlockId) ?? timelineBlocks.at(-1) ?? null;
 
-  useEffect(() => {
-    listAgents()
-      .then(setAgents)
-      .catch((err: Error) => setError(localizeMessage(err.message)));
-  }, []);
-
-  useEffect(() => {
-    if (!run) {
-      setReportInfo(null);
-      setReportPreviewOpen(false);
-      return;
-    }
-    refreshReportFile(run.run_id);
-  }, [run?.run_id]);
-
-  useEffect(() => {
-    if (!run) return undefined;
-    const interval = window.setInterval(() => {
-      refreshRun(run.run_id);
-    }, 1200);
-    return () => window.clearInterval(interval);
-  }, [run?.run_id]);
-
-  useEffect(() => {
-    if (answerState === 'succeeded') {
-      refreshReportFile(run?.run_id);
-    }
-  }, [answerState, run?.updated_at]);
-
-  async function refreshRun(runId = run?.run_id) {
-    if (!runId) return;
-    try {
-      const [freshRun, freshEvents] = await Promise.all([getRun(runId), getEvents(runId)]);
-      setRun(freshRun);
-      setEvents(freshEvents);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? localizeMessage(err.message) : '刷新运行状态失败');
-    }
+  function updateContext<Key extends keyof WorkbenchContextState>(key: Key, value: WorkbenchContextState[Key]) {
+    setContext((current) => ({ ...current, [key]: value }));
   }
 
-  async function refreshReportFile(runId = run?.run_id) {
-    if (!runId) return;
-    setReportLoading(true);
-    try {
-      const info = await getRunReport(runId);
-      setReportInfo(info);
-      setReportVersion(Date.now());
-      setReportError(null);
-    } catch (err) {
-      setReportError(err instanceof Error ? localizeMessage(err.message) : '刷新报告文件失败');
-    } finally {
-      setReportLoading(false);
-    }
+  function pushError(message: string) {
+    setErrorBlocks((current) => [...current, buildErrorBlock(localizeError(message))]);
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function applyPricingRun(run: PricingMeetingRun) {
+    setPricingRun(run);
+    setAssetPackage(run.asset_package);
+    setPreviewCard(run.preview_card);
+    setErrorBlocks([]);
+    setActiveTarget(run.blocked_by[0] ?? null);
+  }
+
+  async function submitCommand(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const rawCommand = composer.trim();
+    if (!rawCommand || loading) return;
+
+    const parsed = parseWorkbenchCommand(rawCommand);
+    const userBlock = buildUserCommandBlock(rawCommand);
+    setUserBlocks((current) => [...current, userBlock]);
+    setSelectedBlockId(userBlock.id);
+    setComposer('');
     setLoading(true);
-    setError(null);
+
     try {
-      setReportInfo(null);
-      setReportPreviewOpen(false);
-      const created = await createRun(buildCreateRunPayload(message, selectedAgents));
-      setRun(created);
-      setEvents(created.events);
+      if (parsed.kind === 'trace') {
+        if (!pricingRun?.async_jobs.length) pushError('当前还没有可展开的异步任务。');
+        return;
+      }
+
+      if (parsed.kind === 'retry') {
+        pushError('当前前端只记录 retry 意图，具体重试策略需要后端提供幂等 run/task 标识。');
+        return;
+      }
+
+      if (!pricingRun || parsed.kind === 'prepare') {
+        await createAgentRun(rawCommand, parsed.targets);
+        return;
+      }
+
+      await continueAgentRun(rawCommand);
     } catch (err) {
-      setError(err instanceof Error ? localizeMessage(err.message) : '请求失败');
+      pushError(err instanceof Error ? err.message : '命令执行失败');
     } finally {
       setLoading(false);
     }
   }
 
-  function toggleAgent(agent: AgentName) {
-    setSelectedAgents((current) =>
-      current.includes(agent) ? current.filter((item) => item !== agent) : [...current, agent]
+  async function createAgentRun(command: string, targets: string[]) {
+    const primaryTarget = targets[0];
+    const selectedInterviewees = [
+      primaryTarget
+        ? (interviewees.find((interviewee) => interviewee.name === primaryTarget) ?? {
+            interviewee_id: 'target_1',
+            name: primaryTarget,
+            role: '访谈对象',
+            region: ''
+          })
+        : interviewees[0]
+    ].filter(Boolean);
+
+    if (!selectedInterviewees.length) {
+      throw new Error('请先在右侧配置一个访谈对象。');
+    }
+
+    const run = await createPricingMeetingRun(
+      buildPricingMeetingRunCreatePayload(
+        command || context.task,
+        { ...meetingContext, meeting_id: context.meetingId },
+        selectedInterviewees
+      )
     );
+
+    applyPricingRun(run);
   }
 
-  async function cancelActiveTasks() {
-    if (!run) return;
-    const activeTasks = run.tasks.filter((task) => ['queued', 'running'].includes(task.status));
-    await Promise.all(activeTasks.map((task) => cancelTask(task.run_id, task.task_id)));
-    await refreshRun(run.run_id);
+  async function continueAgentRun(content: string) {
+    if (!pricingRun) throw new Error('请先创建 PricingMeetingAgent run。');
+    const run = await continuePricingMeetingRun(pricingRun.run_id, { content });
+    applyPricingRun(run);
+  }
+
+  function quickCommand(command: string) {
+    setComposer(command);
+  }
+
+  function setReplyTarget(target: string) {
+    setActiveTarget(target);
+    setComposer(`@${target} `);
   }
 
   return (
-    <main className="app-shell">
-      <section className="ask-panel">
+    <main className="workbench-shell">
+      <aside className="thread-rail">
         <div className="brand-block">
-          <span className="eyebrow">财务问数助手</span>
-          <h1>多Agent架构</h1>
-        </div>
-
-        <form onSubmit={handleSubmit} className="question-form">
-          <label htmlFor="message">你的问题</label>
-          <textarea
-            id="message"
-            value={message}
-            onChange={(event) => setMessage(event.target.value)}
-            rows={9}
-            placeholder="例如：请分析最新期间收入、利润、现金流与往来账龄风险。"
-          />
-
-          <div className="agent-selector" aria-label="选择参与分析的业务域">
-            <span>选择数据域</span>
-            <div>
-              {selectableAgents.map((agent) => (
-                <button
-                  type="button"
-                  key={agent.name}
-                  className={
-                    selectedAgents.includes(agent.name) ? 'agent-toggle selected' : 'agent-toggle'
-                  }
-                  onClick={() => toggleAgent(agent.name)}
-                  title={agent.description}
-                >
-                  <BarChart3 size={16} aria-hidden="true" />
-                  {AGENT_LABELS[agent.name]}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <button className="primary-action" disabled={loading || !message.trim()} type="submit">
-            <Play size={18} aria-hidden="true" />
-            <span>{loading ? '正在提交' : '开始问数'}</span>
-          </button>
-        </form>
-
-        {error && <div className="error-line">{error}</div>}
-      </section>
-
-      <section className={`answer-panel answer-${answerState}`}>
-        <div className="answer-toolbar">
+          <TerminalSquare size={22} />
           <div>
-            <span className="eyebrow">综合回答</span>
-            <h2>{run ? '基于子代理的分析结果' : '等待提问'}</h2>
-          </div>
-          <div className="toolbar-actions">
-            <button
-              type="button"
-              className="icon-button"
-              title="刷新回答"
-              disabled={!run}
-              onClick={() => refreshRun()}
-            >
-              <RefreshCw size={18} aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              className="icon-button danger"
-              title="停止当前分析"
-              disabled={!canCancel}
-              onClick={cancelActiveTasks}
-            >
-              <Square size={17} aria-hidden="true" />
-            </button>
+            <span>Agent Pilot</span>
+            <strong>透明执行工作台</strong>
           </div>
         </div>
 
-        {run && (
-          <div className="answer-meta">
-            <span>运行编号：{run.run_id}</span>
-            <span>问题：{run.message}</span>
-          </div>
-        )}
-
-        {run && (
-          <section className="execution-strip" aria-label="子代理执行情况">
-            <div className="execution-heading">
-              <div>
-                <span className="eyebrow">执行情况</span>
-                <h3>子代理链路</h3>
-              </div>
-              {summary && (
-                <span className="execution-summary">
-                  {summary.running > 0 ? '执行中' : '当前状态'} · 完成 {summary.succeeded} /{' '}
-                  {run.tasks.length}
-                </span>
-              )}
-            </div>
-
-            <div className="execution-grid">
-              {run.tasks.map((task) => {
-                const event = latestTaskEvent(events, task);
-                return (
-                  <article className={`execution-step execution-${task.status}`} key={task.task_id}>
-                    <div className="execution-step-top">
-                      <strong>{AGENT_LABELS[task.agent]}</strong>
-                      <span className="status-pill compact">
-                        {statusIcon(task.status)}
-                        {STATUS_LABELS[task.status]}
-                      </span>
-                    </div>
-                    <span className="execution-source">
-                      {task.analysis?.table_name ?? AGENT_TABLES[task.agent]}
-                    </span>
-                    <div className="progress-track" aria-hidden="true">
-                      <span style={{ width: `${task.progress}%` }} />
-                    </div>
-                    <p>{localizeMessage(event?.message ?? '等待调度器更新状态')}</p>
-                  </article>
-                );
-              })}
-            </div>
-          </section>
-        )}
-
-        <article className="answer-card">
-          <header>
-            <span className="answer-state">
-              {answerState === 'empty' ? <Search size={18} /> : statusIcon(answerState)}
-              {answerState === 'empty' ? '可提问' : STATUS_LABELS[answerState]}
-            </span>
-            {summary && (
-              <span>
-                已完成 {summary.succeeded} / {run?.tasks.length ?? 0}，失败 {summary.error}
-              </span>
-            )}
-          </header>
-          <div className="markdown-report">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{answerText}</ReactMarkdown>
-          </div>
-        </article>
-      </section>
-
-      <aside className="side-panel">
-        <section className="domain-panel">
-          <div className="side-heading">
-            <span className="eyebrow">业务域状态</span>
-            <h2>子代理</h2>
-          </div>
-          <div className="domain-list">
-            {(run?.tasks ?? [])
-              .filter((task) => task.agent !== 'finance_report_agent')
-              .map((task) => (
-                <article className={`domain-item domain-${task.status}`} key={task.task_id}>
-                  <div>
-                    <strong>{AGENT_LABELS[task.agent]}</strong>
-                    <span>{task.analysis?.table_name ?? AGENT_TABLES[task.agent]}</span>
-                  </div>
-                  <span className="status-pill">
-                    {statusIcon(task.status)}
-                    {STATUS_LABELS[task.status]}
-                  </span>
-                </article>
-              ))}
-            {!run && <p className="muted-text">提交问题后，这里只显示必要的业务域进度。</p>}
-          </div>
+        <section className="rail-section">
+          <span className="section-label">Current Thread</span>
+          <button className="thread-item active" type="button">
+            <span>{pricingRun?.status ?? 'idle'}</span>
+            <strong>{context.meetingTitle}</strong>
+            <small>
+              {pricingRun?.async_jobs.length ?? 0} async jobs
+            </small>
+          </button>
         </section>
 
-        <section className="artifact-panel">
-          <div className="side-heading">
-            <span className="eyebrow">产物</span>
-            <h2>报告</h2>
-          </div>
-
-          <article className={reportInfo?.exists ? 'artifact-item ready' : 'artifact-item'}>
-            <div className="artifact-file-icon">
-              <FileText size={20} aria-hidden="true" />
-            </div>
-            <div className="artifact-body">
-              <strong>{reportInfo?.name ?? 'financial-report.html'}</strong>
-              <span>
-                {reportInfo?.exists ? '已生成' : run ? '等待生成' : '暂无运行'} ·{' '}
-                {formatBytes(reportInfo?.size_bytes ?? null)} ·{' '}
-                {formatDateTime(reportInfo?.modified_at ?? null)}
-              </span>
-              <small title={reportInfo?.display_path || run?.report_path || ''}>
-                {reportInfo?.display_path || run?.report_path || '提交问题后生成报告产物'}
-              </small>
-            </div>
-          </article>
-
-          <div className="artifact-actions">
-            <button
-              type="button"
-              className="text-action"
-              disabled={!reportUrl}
-              onClick={() => setReportPreviewOpen(true)}
-            >
-              <Eye size={16} aria-hidden="true" />
-              预览
-            </button>
-            {reportUrl && (
-              <a className="text-action" href={reportUrl} target="_blank" rel="noreferrer">
-                <ExternalLink size={16} aria-hidden="true" />
-                打开
-              </a>
-            )}
-            <button
-              type="button"
-              className="icon-button compact"
-              title="刷新产物"
-              onClick={() => refreshReportFile()}
-              disabled={!run || reportLoading}
-            >
-              <RefreshCw size={16} className={reportLoading ? 'spin' : undefined} />
-            </button>
-          </div>
-
-          {reportError && <div className="error-line compact">{reportError}</div>}
-        </section>
-
-        <section className="event-panel">
-          <div className="side-heading">
-            <span className="eyebrow">最近事件</span>
-            <h2>{events.length}</h2>
-          </div>
-          <ol className="event-list">
-            {events.slice(-6).map((event) => (
-              <li key={event.event_id}>
-                <time>{formatTime(event.created_at)}</time>
-                <span>{event.agent ? AGENT_LABELS[event.agent] : '调度器'}</span>
-                <p>{localizeMessage(event.message)}</p>
-              </li>
-            ))}
-          </ol>
+        <section className="rail-section">
+          <span className="section-label">Commands</span>
+          <button type="button" className="command-chip" onClick={() => quickCommand('/prepare meeting_20260511_001 @张三')}>
+            /prepare
+          </button>
+          <button type="button" className="command-chip" onClick={() => quickCommand('/material 生成会议物料')}>
+            /material check
+          </button>
+          <button type="button" className="command-chip" onClick={() => quickCommand('/preview 生成会前 5 分钟预览')}>
+            /preview
+          </button>
+          <button type="button" className="command-chip" onClick={() => quickCommand('/trace last')}>
+            /trace
+          </button>
         </section>
       </aside>
 
-      {reportPreviewOpen && reportUrl && (
-        <div className="report-preview-shell" role="dialog" aria-modal="true" aria-label="Kami 报告预览">
-          <button
-            type="button"
-            className="report-preview-backdrop"
-            aria-label="关闭报告预览"
-            onClick={() => setReportPreviewOpen(false)}
-          />
-          <section className="report-preview-drawer">
-            <header>
-              <div>
-                <span className="eyebrow">产物预览</span>
-                <h2>{reportInfo?.name ?? 'financial-report.html'}</h2>
-              </div>
-              <div className="toolbar-actions">
-                <a className="icon-button" href={reportUrl} target="_blank" rel="noreferrer" title="新窗口打开">
-                  <ExternalLink size={18} aria-hidden="true" />
-                </a>
-                <button
-                  type="button"
-                  className="icon-button"
-                  title="关闭预览"
-                  onClick={() => setReportPreviewOpen(false)}
-                >
-                  <X size={18} aria-hidden="true" />
-                </button>
-              </div>
-            </header>
-            <div className="preview-report-meta">
-              <span>{reportInfo?.display_path}</span>
-              <span>{formatBytes(reportInfo?.size_bytes ?? null)}</span>
-              <span>{formatDateTime(reportInfo?.modified_at ?? null)}</span>
+      <section className="timeline-workspace">
+        <header className="workspace-topbar">
+          <div>
+            <span className="section-label">PricingMeetingAgent</span>
+            <h1>{context.meetingTitle}</h1>
+          </div>
+          <div className="run-status">
+            {statusIcon(pricingRun?.status)}
+            <span>{pricingRun?.status ?? 'idle'}</span>
+          </div>
+        </header>
+
+        <section className="timeline-surface">
+          {!timelineBlocks.length && (
+            <div className="empty-timeline">
+              <Code2 size={34} />
+              <h2>从一个命令开始</h2>
+              <p>输入自然语言、slash command 或 @访谈对象 回复。当前工作台按单人访谈 run 跑通闭环，多人触发交给外部服务。</p>
             </div>
-            <iframe
-              className="report-preview-frame"
-              src={reportUrl}
-              title="Kami HTML 财务分析报告"
-              sandbox=""
-            />
-          </section>
-        </div>
-      )}
+          )}
+
+          {timelineBlocks.map((block) => (
+            <article
+              key={block.id}
+              className={`timeline-block ${block.type} ${selectedBlock?.id === block.id ? 'selected' : ''}`}
+              onClick={() => setSelectedBlockId(block.id)}
+            >
+              <div className="block-avatar">{blockIcon(block)}</div>
+              <div className="block-body">
+                <header>
+                  <div>
+                    <strong>{block.actor}</strong>
+                    {block.target && (
+                      <>
+                        <ChevronRight size={14} />
+                        <span>{block.target}</span>
+                      </>
+                    )}
+                  </div>
+                  {block.status && <em>{block.status}</em>}
+                </header>
+
+                {block.title && <h3>{block.title}</h3>}
+                {block.type === 'artifact' ? (
+                  <ArtifactBlock block={block} />
+                ) : (
+                  <MarkdownBlock content={block.content} />
+                )}
+              </div>
+            </article>
+          ))}
+        </section>
+
+        <form className="command-composer" onSubmit={submitCommand}>
+          {activeTarget && (
+            <div className="reply-target">
+              <MessageSquareText size={15} />
+              Replying context: <strong>{activeTarget}</strong>
+            </div>
+          )}
+          <textarea
+            value={composer}
+            onChange={(event) => setComposer(event.target.value)}
+            placeholder="/prepare meeting_001 @张三，或 @张三 补充访谈回答..."
+            rows={3}
+          />
+          <button type="submit" disabled={loading || !composer.trim()}>
+            {loading ? <RefreshCw size={18} className="spin" /> : <Send size={18} />}
+            <span>{loading ? '执行中' : '发送命令'}</span>
+          </button>
+        </form>
+      </section>
+
+      <aside className="inspector-panel workbench-inspector">
+        <section>
+          <div className="side-heading">
+            <span className="section-label">Context</span>
+            <h2>meeting</h2>
+          </div>
+          <div className="context-editor">
+            <label>
+              Meeting ID
+              <input value={context.meetingId} onChange={(event) => updateContext('meetingId', event.target.value)} />
+            </label>
+            <label>
+              Title
+              <input value={context.meetingTitle} onChange={(event) => updateContext('meetingTitle', event.target.value)} />
+            </label>
+            <label>
+              Topic
+              <input value={context.businessTopic} onChange={(event) => updateContext('businessTopic', event.target.value)} />
+            </label>
+            <label>
+              Interviewee
+              <textarea
+                value={context.intervieweesText}
+                onChange={(event) => updateContext('intervieweesText', event.target.value)}
+                rows={3}
+              />
+            </label>
+          </div>
+        </section>
+
+        <section>
+          <div className="side-heading">
+            <span className="section-label">Targets</span>
+            <button className="icon-button" type="button" disabled={!pricingRun || loading} onClick={() => quickCommand('/trace last')}>
+              <RefreshCw size={17} />
+            </button>
+          </div>
+          <div className="target-list">
+            {interviewees.map((item) => {
+              const name = item.name;
+              const job = pricingRun?.async_jobs.find((candidate) => candidate.agent === 'pre_meeting_interview_agent');
+              const status = pricingRun?.blocked_by.includes(name) ? 'waiting_for_input' : (job?.status ?? 'queued');
+              return (
+                <button
+                  className={name === activeTarget ? 'target-item active' : 'target-item'}
+                  key={item.interviewee_id ?? item.name}
+                  type="button"
+                  onClick={() => setReplyTarget(name)}
+                >
+                  <span>{statusIcon(status)}</span>
+                  <strong>{name}</strong>
+                  <small>{sessionStatusText(status)}</small>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        <section>
+          <div className="side-heading">
+            <span className="section-label">Selected Block</span>
+            <h2>{selectedBlock?.type ?? '-'}</h2>
+          </div>
+          <pre className="json-preview compact">{prettyJson(selectedBlock ?? { status: 'no_selection' })}</pre>
+        </section>
+
+        <section>
+          <div className="side-heading">
+            <span className="section-label">Async Jobs</span>
+            <h2>{pricingRun?.async_jobs.length ?? 0}</h2>
+          </div>
+          {pricingRun?.async_jobs.length ? (
+            <ol className="flow-list">
+              {pricingRun.async_jobs.map((job) => (
+                <li key={job.job_id}>
+                  <strong>{job.job_id}</strong>
+                  {` · ${job.agent} · ${job.status} · ${job.summary}`}
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="muted-text">执行命令后，这里展示 DeepAgents async subagent job。</p>
+          )}
+        </section>
+
+        <section>
+          <div className="side-heading">
+            <span className="section-label">Artifacts</span>
+            <h2>{assetPackage || previewCard ? 'ready' : '-'}</h2>
+          </div>
+          <div className="artifact-list">
+            {assetPackage && (
+              <div>
+                <Box size={16} />
+                <span>{resolveArtifactTitle(assetPackage)}</span>
+              </div>
+            )}
+            {previewCard && (
+              <div>
+                <FileJson size={16} />
+                <span>{resolveArtifactTitle(previewCard)}</span>
+              </div>
+            )}
+            {!assetPackage && !previewCard && <p className="muted-text">暂无产物。</p>}
+          </div>
+        </section>
+      </aside>
     </main>
+  );
+}
+
+function ArtifactBlock({ block }: { block: TimelineBlock }) {
+  return (
+    <div className="artifact-block">
+      <MarkdownBlock content={block.content} />
+      <details>
+        <summary>查看 artifact JSON</summary>
+        <pre className="inline-json">{prettyJson(block.data)}</pre>
+      </details>
+    </div>
   );
 }

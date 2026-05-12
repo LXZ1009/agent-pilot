@@ -8,23 +8,44 @@ from dataclasses import dataclass
 from typing import Any
 from uuid import uuid4
 
-from agent_pilot.deepagents_factory import KAMI_HTML_REPORT_INSTRUCTION, create_finance_supervisor_graph
-from agent_pilot.finance_agents import AGENTS, TABLE_AGENT_NAMES
+from langchain_openai import ChatOpenAI
+from pydantic import SecretStr
+
+from agent_pilot.deepagents_factory import (
+    MEETING_ASSET_PACKAGE_INSTRUCTION,
+    create_pricing_meeting_supervisor_graph,
+)
+from agent_pilot.meeting_agents import AGENTS, EXTERNAL_SERVICE_BOUNDARY, TASK_AGENT_NAMES
 from agent_pilot.models import (
     AgentInfo,
     AgentName,
     AgentTask,
     EventRecord,
     EventType,
+    MeetingContext,
     RunRecord,
     TaskStatus,
     utc_now,
 )
 
-from langchain_openai import ChatOpenAI
-from pydantic import SecretStr
+REPORT_ARTIFACT_FILENAME = "meeting-asset-package.json"
 
-REPORT_ARTIFACT_FILENAME = "financial-report.html"
+_MATERIAL_INTENT_KEYWORDS = (
+    "物料",
+    "材料",
+    "资产包",
+    "预览",
+    "通知",
+    "会前5分钟",
+    "会前五分钟",
+    "任务跟踪",
+    "行动项",
+    "material",
+    "asset",
+    "package",
+    "preview",
+    "notification",
+)
 
 
 @dataclass(frozen=True)
@@ -96,8 +117,15 @@ class DeepAgentsRuntime:
     def agents(self) -> list[AgentInfo]:
         return list(AGENTS.values())
 
-    async def create_run(self, message: str, requested_agents: Iterable[AgentName]) -> RunRecord:
-        selected_agents = self._select_agents(requested_agents)
+    async def create_run(
+        self,
+        message: str,
+        requested_agents: Iterable[AgentName],
+        meeting_context: MeetingContext | None = None,
+    ) -> RunRecord:
+        requested = list(dict.fromkeys(requested_agents))
+        auto_route = not requested
+        selected_agents = self._select_agents(requested)
         run_id = f"run_{uuid4().hex[:12]}"
         tasks = [
             AgentTask(
@@ -111,10 +139,14 @@ class DeepAgentsRuntime:
         run = RunRecord(
             run_id=run_id,
             message=message,
+            meeting_context=meeting_context,
             requested_agents=selected_agents,
+            auto_route=auto_route,
             supervisor_note=(
-                "Real DeepAgents supervisor will use OpenAI tool-calling and finance "
-                f"business-domain subagents: {', '.join(agent.value for agent in selected_agents)}."
+                "Real DeepAgents pricing meeting supervisor will use OpenAI tool-calling and "
+                f"{'auto-route across available' if auto_route else 'explicitly requested'} "
+                f"meeting subagents: {', '.join(agent.value for agent in selected_agents)}. "
+                "DingTalk scheduling, sending, card callbacks, meetings, and files are external."
             ),
             report_path=_report_artifact_path(run_id),
             tasks=tasks,
@@ -188,7 +220,9 @@ class DeepAgentsRuntime:
                 graph = self._graph
             else:
                 model_config = self._model_config or DeepAgentsModelConfig.from_env()
-                graph = create_finance_supervisor_graph(model=model_config.to_deepagents_model())
+                graph = create_pricing_meeting_supervisor_graph(
+                    model=model_config.to_deepagents_model()
+                )
             async with self._lock:
                 run = self._runs[run_id]
                 for task in run.tasks:
@@ -220,12 +254,12 @@ class DeepAgentsRuntime:
                     task.status = TaskStatus.SUCCEEDED
                     task.progress = 100
                     task.completed_at = utc_now()
-                    if task.agent == AgentName.FINANCE_REPORT:
+                    if task.agent == AgentName.PRICING_MEETING:
                         task.result = content
                     else:
                         task.result = (
-                            "DeepAgents supervisor delegated this domain through model "
-                            "tool-calling. See finance_report_agent for the synthesized result."
+                            "DeepAgents supervisor delegated this meeting subtask through model "
+                            "tool-calling. See pricing_meeting_agent for the synthesized result."
                         )
                     self._append_event_locked(
                         run,
@@ -242,18 +276,49 @@ class DeepAgentsRuntime:
 
     def _build_prompt(self, run_id: str) -> str:
         run = self._runs[run_id]
-        selected = [agent.value for agent in run.requested_agents if agent != AgentName.FINANCE_REPORT]
-        return (
-            "你必须使用 DeepAgents 的业务域 subagents 完成本次任务，而不是自己凭空回答。\n"
-            f"用户问题：{run.message}\n"
-            f"本次必须使用的业务域 agents：{', '.join(selected)}。\n"
-            f"本次 HTML 研报产物路径：`{run.report_path}`。\n"
-            "每个业务域 agent 必须调用自己的 MySQL 只读工具访问真实数据库。\n"
-            "生成最终报告前必须读取 `/.agents/skills/kami/SKILL.md`，并使用 Kami 的中文长文档/研报风格输出 Markdown。\n"
-            "最后由 finance_report_agent 生成中文综合分析报告，报告必须包含：总体结论、分领域证据、"
-            "关键 SQL/工具证据、风险限制、下一步建议。"
-            f"\n{KAMI_HTML_REPORT_INSTRUCTION}"
+        selected = [
+            agent.value for agent in run.requested_agents if agent != AgentName.PRICING_MEETING
+        ]
+        if run.auto_route:
+            routing_instruction = (
+                f"可用定价会议 agents：{', '.join(selected)}。\n"
+                "请根据任务场景自动选择必要的定价会议 agents 协同完成，"
+                "不要机械调用所有 Agent；只调用与当前任务直接相关的 Agent。"
+            )
+        else:
+            routing_instruction = f"本次必须使用的定价会议 agents：{', '.join(selected)}。"
+
+        context_json = (
+            json.dumps(
+                run.meeting_context.model_dump(mode="json", exclude_none=True),
+                ensure_ascii=False,
+                indent=2,
+            )
+            if run.meeting_context
+            else "{}"
         )
+        sections = [
+            "你必须使用 DeepAgents 的定价会议 subagents 完成本次任务，而不是自己凭空回答。",
+            f"用户问题：{run.message}",
+            f"会议上下文 JSON：\n{context_json}",
+            routing_instruction,
+            "钉钉服务逻辑不在本项目中；不要实现或声称已经执行钉钉定时调度、消息发送、"
+            "卡片回调、会议开始检测或文件上传。",
+            "如果当前目标只是会议启动或会前访谈，请停留在访谈卡片/访谈等待状态，"
+            "不要默认进入物料整理、通知或会后任务跟踪。",
+        ]
+
+        if _message_requests_material(run.message):
+            sections.extend(
+                [
+                    f"本次会议物料资产包路径：`{run.report_path}`。",
+                    "用户目标包含物料、资产包、预览、通知或任务跟踪意图时，"
+                    "由 pricing_meeting_agent 委派相关子 Agent 并生成中文摘要和可被外部钉钉服务消费的会议物料资产包。",
+                    MEETING_ASSET_PACKAGE_INSTRUCTION,
+                ]
+            )
+
+        return "\n".join(sections)
 
     async def _mark_run_cancelled(self, run_id: str) -> None:
         async with self._lock:
@@ -283,10 +348,10 @@ class DeepAgentsRuntime:
 
     def _select_agents(self, requested_agents: Iterable[AgentName]) -> list[AgentName]:
         requested = list(dict.fromkeys(requested_agents))
-        table_agents = [agent for agent in requested if agent in TABLE_AGENT_NAMES]
-        if not table_agents:
-            table_agents = list(TABLE_AGENT_NAMES)
-        return [*table_agents, AgentName.FINANCE_REPORT]
+        task_agents = [agent for agent in requested if agent in TASK_AGENT_NAMES]
+        if not task_agents:
+            task_agents = list(TASK_AGENT_NAMES)
+        return [*task_agents, AgentName.PRICING_MEETING]
 
     def _require_task_locked(self, run_id: str, task_id: str) -> tuple[RunRecord, AgentTask]:
         run = self._runs.get(run_id)
@@ -314,6 +379,11 @@ class DeepAgentsRuntime:
                 message=message,
             )
         )
+
+
+def _message_requests_material(message: str) -> bool:
+    normalized = message.lower()
+    return any(keyword.lower() in normalized for keyword in _MATERIAL_INTENT_KEYWORDS)
 
 
 def _last_message_content(result: dict[str, Any]) -> str:

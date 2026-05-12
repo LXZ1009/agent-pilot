@@ -9,10 +9,14 @@ from fastapi.responses import FileResponse
 from dotenv import load_dotenv
 
 from agent_pilot.deepagents_runtime import DeepAgentsRuntime
+from agent_pilot.pricing_task_runtime import PricingTaskRuntime
 from agent_pilot.models import (
     AgentInfo,
     AgentTask,
     EventRecord,
+    PricingMeetingRun,
+    PricingMeetingRunContinueRequest,
+    PricingMeetingRunCreateRequest,
     ReportFileInfo,
     RunCreateRequest,
     RunRecord,
@@ -40,11 +44,11 @@ def _resolve_virtual_report_path(report_path: str | None) -> Path | None:
 
 def _report_file_info(run: RunRecord) -> ReportFileInfo:
     report_file = _resolve_virtual_report_path(run.report_path)
-    content_url = f"/api/runs/{run.run_id}/reports/finance/content"
+    content_url = f"/api/runs/{run.run_id}/artifacts/meeting-assets/content"
     if report_file is None or not report_file.exists() or not report_file.is_file():
         return ReportFileInfo(
             exists=False,
-            name="financial-report.html",
+            name="meeting-asset-package.json",
             display_path=run.report_path or "",
             content_url=None,
         )
@@ -62,6 +66,7 @@ def _report_file_info(run: RunRecord) -> ReportFileInfo:
 
 def create_app(
     runtime: DeepAgentsRuntime | None = None,
+    pricing_task_runtime: PricingTaskRuntime | None = None,
 ) -> FastAPI:
     app = FastAPI(
         title="Agent Pilot API",
@@ -76,20 +81,21 @@ def create_app(
         allow_headers=["*"],
     )
     app.state.runtime = runtime or DeepAgentsRuntime()
+    app.state.pricing_task_runtime = pricing_task_runtime or PricingTaskRuntime()
 
     @app.get("/api/health")
     async def health() -> dict[str, str]:
         return {"status": "ok"}
 
-    @app.get("/api/runs/{run_id}/reports/finance", response_model=ReportFileInfo)
-    async def get_financial_report_info(run_id: str) -> ReportFileInfo:
+    @app.get("/api/runs/{run_id}/artifacts/meeting-assets", response_model=ReportFileInfo)
+    async def get_meeting_asset_info(run_id: str) -> ReportFileInfo:
         run = await app.state.runtime.get_run(run_id)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         return _report_file_info(run)
 
-    @app.get("/api/runs/{run_id}/reports/finance/content")
-    async def get_financial_report_content(run_id: str) -> FileResponse:
+    @app.get("/api/runs/{run_id}/artifacts/meeting-assets/content")
+    async def get_meeting_asset_content(run_id: str) -> FileResponse:
         run = await app.state.runtime.get_run(run_id)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
@@ -98,7 +104,7 @@ def create_app(
             raise HTTPException(status_code=404, detail="Financial report file not found")
         return FileResponse(
             report_file,
-            media_type="text/html",
+            media_type="application/json",
             headers={
                 "Cache-Control": "no-store",
                 "X-Content-Type-Options": "nosniff",
@@ -109,9 +115,45 @@ def create_app(
     async def list_agents() -> list[AgentInfo]:
         return app.state.runtime.agents
 
+    @app.post(
+        "/api/pricing-meeting/runs",
+        response_model=PricingMeetingRun,
+        status_code=status.HTTP_201_CREATED,
+    )
+    async def create_pricing_meeting_run(
+        payload: PricingMeetingRunCreateRequest,
+    ) -> PricingMeetingRun:
+        return await app.state.pricing_task_runtime.create_pricing_meeting_run(
+            payload.command,
+            payload.meeting_context,
+            payload.interviewees,
+        )
+
+    @app.post(
+        "/api/pricing-meeting/runs/{run_id}/continue",
+        response_model=PricingMeetingRun,
+    )
+    async def continue_pricing_meeting_run(
+        run_id: str,
+        payload: PricingMeetingRunContinueRequest,
+    ) -> PricingMeetingRun:
+        try:
+            return await app.state.pricing_task_runtime.continue_pricing_meeting_run(
+                run_id,
+                payload.content,
+            )
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
     @app.post("/api/runs", response_model=RunRecord, status_code=status.HTTP_201_CREATED)
     async def create_run(payload: RunCreateRequest) -> RunRecord:
-        return await app.state.runtime.create_run(payload.message, payload.agents)
+        return await app.state.runtime.create_run(
+            payload.message,
+            payload.agents,
+            payload.meeting_context,
+        )
 
     @app.get("/api/runs", response_model=list[RunRecord])
     async def list_runs() -> list[RunRecord]:
