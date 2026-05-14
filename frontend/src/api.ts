@@ -1,137 +1,69 @@
+import { HttpAgentServerAdapter, type HttpAgentServerAdapterOptions } from '@langchain/react';
+
 export type AgentName =
+  | 'pricing_meeting_agent'
   | 'pre_meeting_interview_agent'
   | 'interview_structuring_agent'
   | 'material_asset_agent'
   | 'notification_agent'
-  | 'task_tracking_agent'
-  | 'pricing_meeting_agent';
-
-export type PricingMeetingRunStatus = 'running' | 'waiting_for_input' | 'completed' | 'error';
+  | 'task_tracking_agent';
 
 export interface AgentInfo {
   name: AgentName;
   title: string;
   description: string;
   capabilities: string[];
-  table_name?: string | null;
-  business_domain?: string | null;
+  business_domain: string;
 }
 
-export interface MeetingContext {
-  meeting_id: string | null;
-  meeting_title: string | null;
-  scheduled_start: string | null;
-  host_name: string | null;
-  participant_name: string | null;
-  business_topic: string | null;
-  source: string | null;
-  business_payload: Record<string, unknown>;
-}
-
-export interface Interviewee {
-  interviewee_id?: string | null;
-  name: string;
-  role?: string | null;
-  region?: string | null;
-}
-
-export interface PricingMeetingAsyncJob {
-  job_id: string;
-  agent: AgentName | string;
-  status: string;
-  action?: string;
-  summary: string;
-}
-
-export interface WorkspaceCard {
-  id?: string;
-  type: string;
+export interface EvidenceCard {
+  id: string;
   title: string;
-  status?: string;
-  summary?: string;
-  questions?: string[];
-  missing_fields?: string[];
-  next_actions?: string[];
-  data?: unknown;
-  [key: string]: unknown;
+  description: string;
+  category: 'process' | 'source' | 'missing' | 'technical' | string;
+  confidence: 'recorded' | string;
 }
 
-export interface PricingMeetingRunCreatePayload {
-  command: string;
-  meeting_context: Partial<MeetingContext>;
-  interviewees: Interviewee[];
+export interface ThreadEvidence {
+  thread_id: string;
+  summary_cards: EvidenceCard[];
+  technical_events: unknown[];
 }
 
-export interface PricingMeetingRunContinuePayload {
-  content: string;
-}
+const API_ROOT = normalizeApiRoot(import.meta.env.VITE_API_ROOT ?? '/api');
 
-export interface PricingMeetingRun {
-  run_id: string;
-  command: string;
-  meeting_context: MeetingContext;
-  status: PricingMeetingRunStatus;
-  active_agent: string;
-  pending_agents?: string[];
-  blocked_by?: string[];
-  coordinator_note: string;
-  async_jobs?: PricingMeetingAsyncJob[];
-  workspace_cards?: WorkspaceCard[];
-  asset_package?: Record<string, unknown> | null;
-  preview_card?: Record<string, unknown> | null;
-  timeline?: Record<string, unknown>[];
-  created_at: string;
-  updated_at: string;
-}
-
-const API_ROOT = import.meta.env.VITE_API_ROOT ?? '/api';
-
-async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_ROOT}${path}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...init?.headers
-    },
-    ...init
-  });
-
-  if (!response.ok) {
-    const message = await response.text();
-    throw new Error(message || `Request failed with ${response.status}`);
-  }
-
-  return response.json() as Promise<T>;
-}
-
-export function buildPricingMeetingRunCreatePayload(
-  command: string,
-  meetingContext: Partial<MeetingContext>,
-  interviewees: Interviewee[]
-): PricingMeetingRunCreatePayload {
+export function buildAgentTransportOptions(threadId: string): HttpAgentServerAdapterOptions {
   return {
-    command,
-    meeting_context: meetingContext,
-    interviewees
+    apiUrl: API_ROOT,
+    threadId,
+    paths: {
+      commands: `threads/${threadId}/commands`,
+      stream: `threads/${threadId}/stream/events`
+    }
   };
 }
 
-export function listAgents(): Promise<AgentInfo[]> {
-  return requestJson<AgentInfo[]>('/agents');
+export function createAgentTransport(threadId: string): HttpAgentServerAdapter {
+  return new HttpAgentServerAdapter(buildAgentTransportOptions(threadId));
 }
 
-export function createPricingMeetingRun(payload: PricingMeetingRunCreatePayload): Promise<PricingMeetingRun> {
-  return requestJson<PricingMeetingRun>('/pricing-meeting/runs', {
-    method: 'POST',
-    body: JSON.stringify(payload)
-  });
+export async function fetchThreadEvidence(threadId: string): Promise<ThreadEvidence> {
+  const response = await fetch(`${API_ROOT}/threads/${threadId}/evidence`);
+  if (!response.ok) {
+    throw new Error(`Evidence request failed with ${response.status}`);
+  }
+  return response.json() as Promise<ThreadEvidence>;
 }
 
-export function continuePricingMeetingRun(
-  runId: string,
-  payload: PricingMeetingRunContinuePayload
-): Promise<PricingMeetingRun> {
-  return requestJson<PricingMeetingRun>(`/pricing-meeting/runs/${runId}/continue`, {
-    method: 'POST',
-    body: JSON.stringify(payload)
-  });
+export async function listAgents(): Promise<AgentInfo[]> {
+  const response = await fetch(`${API_ROOT}/agents`);
+  if (!response.ok) {
+    throw new Error(`Agent request failed with ${response.status}`);
+  }
+  return response.json() as Promise<AgentInfo[]>;
+}
+
+function normalizeApiRoot(apiRoot: string): string {
+  const origin = globalThis.location?.origin ?? 'http://localhost';
+  return new URL(apiRoot, origin).toString().replace(/\/$/, '');
 }

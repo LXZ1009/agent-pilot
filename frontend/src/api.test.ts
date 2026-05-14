@@ -1,16 +1,27 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildPricingMeetingRunCreatePayload } from './api';
+import { buildAgentTransportOptions } from './api';
 
-describe('api payload', () => {
-  it('builds pricing meeting payload', () => {
-    const payload = buildPricingMeetingRunCreatePayload(
-      '开始会前访谈',
-      { meeting_id: 'm1' },
-      [{ name: '张三' }]
+describe('agent protocol transport', () => {
+  it('targets our gateway with official Agent Streaming Protocol paths', () => {
+    const options = buildAgentTransportOptions('thread_001');
+
+    expect(options.apiUrl).toBe('http://localhost/api');
+    expect(options.threadId).toBe('thread_001');
+    expect(options.paths).toEqual({
+      commands: 'threads/thread_001/commands',
+      stream: 'threads/thread_001/stream/events'
+    });
+  });
+
+  it('builds valid adapter URLs under the API gateway root', () => {
+    const options = buildAgentTransportOptions('thread_001');
+
+    expect(new URL(options.paths?.commands ?? '', `${options.apiUrl}/`).toString()).toBe(
+      'http://localhost/api/threads/thread_001/commands'
     );
-    expect(payload.command).toBe('开始会前访谈');
-    expect(payload.meeting_context.meeting_id).toBe('m1');
-    expect(payload.interviewees[0].name).toBe('张三');
+    expect(new URL(options.paths?.stream ?? '', `${options.apiUrl}/`).toString()).toBe(
+      'http://localhost/api/threads/thread_001/stream/events'
+    );
   });
 });
