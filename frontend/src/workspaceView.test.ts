@@ -4,6 +4,7 @@ import {
   buildExecutionDetailModel,
   buildExecutionTraceModel,
   buildEvidenceGroups,
+  buildRunInspectorModel,
   buildStreamErrorMessage,
   buildSubagentProcessCard,
   buildTaskProgress,
@@ -270,7 +271,7 @@ describe('workspace view model', () => {
         params: {
           timestamp: '2026-05-14T02:00:00Z',
           namespace: ['analysis_agent:run-123'],
-          data: { event: 'message-start', role: 'ai', id: 'msg_1' }
+          data: { event: 'message-start', role: 'ai', id: 'msg_1', content: 'Agent is inspecting the data' }
         }
       },
       {
@@ -336,8 +337,23 @@ describe('workspace view model', () => {
       kind: 'tool',
       parentId: 'node:analysis_agent:run-123',
       status: 'complete',
-      metrics: { evidenceCount: 2 }
+      startedAt: '2026-05-14T02:00:02Z',
+      completedAt: '2026-05-14T02:00:03Z',
+      metrics: { evidenceCount: 2 },
+      metadata: {
+        toolCallId: 'tool_1',
+        toolName: 'warehouse_query',
+        inputEventId: 'evt_tool_start',
+        outputEventId: 'evt_tool_finish'
+      }
     });
+    expect(trace.evidenceByNodeId['node:analysis_agent:run-123']).toMatchObject([
+      {
+        kind: 'message',
+        title: 'Agent message',
+        summary: 'Agent is inspecting the data'
+      }
+    ]);
     expect(trace.evidenceByNodeId['tool:tool_1']).toMatchObject([
       {
         kind: 'sql',
@@ -355,10 +371,155 @@ describe('workspace view model', () => {
     });
     expect(trace.summary).toMatchObject({
       nodeCount: 3,
-      evidenceCount: 3,
+      evidenceCount: 4,
       artifactCount: 1,
       errorCount: 0
     });
+  });
+
+  it('builds run inspector projections from deduped lifecycle spans', () => {
+    const model = buildRunInspectorModel([
+      lifecycleEvent('thread_1:1', 1, 'running', '2026-05-14T09:34:27.000Z'),
+      lifecycleEvent('thread_1:1', 1, 'running', '2026-05-14T09:34:27.000Z'),
+      valuesEvent('thread_1:4', 4, [], {
+        messages: [{ type: 'human', id: 'user_1', content: 'first task' }],
+        todos: [{ content: 'inspect input', status: 'completed' }]
+      }),
+      lifecycleEvent('thread_1:27', 27, 'completed', '2026-05-14T09:34:31.000Z'),
+      lifecycleEvent('thread_1:28', 28, 'running', '2026-05-14T09:41:19.000Z'),
+      valuesEvent('thread_1:31', 31, [], {
+        messages: [{ type: 'human', id: 'user_2', content: 'second task' }],
+        todos: [{ content: 'build output', status: 'in_progress' }]
+      }),
+      lifecycleEvent('thread_1:146', 146, 'completed', '2026-05-14T09:41:33.000Z')
+    ]);
+
+    expect(model.runs.map((run) => run.title)).toEqual(['first task', 'second task']);
+    expect(model.runs.map((run) => run.status)).toEqual(['complete', 'complete']);
+    expect(model.runs[0].eventIds).toEqual(['thread_1:1', 'thread_1:4', 'thread_1:27']);
+    expect(model.runs[0].metrics.duplicateEventCount).toBe(1);
+    expect(model.progressByRunId[model.runs[1].id]).toMatchObject([
+      { title: 'build output', status: 'running' }
+    ]);
+  });
+
+  it('assigns namespace-scoped snapshots and artifacts to the active run', () => {
+    const model = buildRunInspectorModel([
+      lifecycleEvent('thread_1:28', 28, 'running', '2026-05-14T09:41:19.000Z'),
+      valuesEvent('thread_1:57', 57, ['tools:abc'], {
+        messages: [{ type: 'tool', name: 'sample_tool', tool_call_id: 'call_1', content: '{"ok":true}' }],
+        todos: []
+      }),
+      {
+        type: 'event',
+        event_id: 'thread_1:58',
+        seq: 58,
+        method: 'custom',
+        params: {
+          namespace: ['tools:abc'],
+          timestamp: '2026-05-14T09:41:58.000Z',
+          data: {
+            type: 'artifact.created',
+            title: 'Markdown brief',
+            artifact: {
+              id: 'brief_md',
+              uri: '/runs/brief.md',
+              mime_type: 'text/markdown'
+            }
+          }
+        }
+      },
+      lifecycleEvent('thread_1:146', 146, 'completed', '2026-05-14T09:41:33.000Z')
+    ]);
+    const runId = model.runs[0].id;
+
+    expect(model.rawEventsByRunId[runId]).toHaveLength(4);
+    expect(model.traceByRunId[runId].nodes.some((node) => node.title === 'tools')).toBe(true);
+    expect(model.artifactsByRunId[runId]).toMatchObject([
+      {
+        id: 'brief_md',
+        title: 'Markdown brief',
+        uri: '/runs/brief.md',
+        mimeType: 'text/markdown',
+        kind: 'document'
+      }
+    ]);
+  });
+
+  it('projects tool calls and async tasks from values snapshots', () => {
+    const model = buildRunInspectorModel([
+      lifecycleEvent('thread_1:1', 1, 'running', '2026-05-14T09:41:01.000Z'),
+      valuesEvent('thread_1:2', 2, [], {
+        messages: [
+          { type: 'human', id: 'user_1', content: 'build package' },
+          {
+            type: 'ai',
+            id: 'ai_1',
+            name: 'supervisor',
+            content: '',
+            tool_calls: [
+              {
+                id: 'call_1',
+                name: 'start_async_task',
+                args: { agent_name: 'material_asset_agent', prompt: 'build package' }
+              }
+            ]
+          },
+          {
+            type: 'tool',
+            id: 'tool_msg_1',
+            name: 'start_async_task',
+            tool_call_id: 'call_1',
+            status: 'success',
+            content: '{"task_id":"task_1","status":"running"}'
+          }
+        ],
+        async_tasks: {
+          task_1: {
+            task_id: 'task_1',
+            agent_name: 'material_asset_agent',
+            status: 'running',
+            run_id: 'run_1',
+            last_updated_at: '2026-05-14T09:41:03.000Z'
+          }
+        }
+      }),
+      lifecycleEvent('thread_1:3', 3, 'completed', '2026-05-14T09:41:04.000Z')
+    ]);
+    const runId = model.runs[0].id;
+    const trace = model.traceByRunId[runId];
+
+    expect(trace.nodesById['supervisor:supervisor']).toMatchObject({
+      kind: 'supervisor',
+      children: ['tool:call_1']
+    });
+    expect(trace.nodesById['tool:call_1']).toMatchObject({
+      kind: 'tool',
+      status: 'complete',
+      metadata: {
+        toolCallId: 'call_1',
+        toolName: 'start_async_task',
+        inputEventId: 'ai_1',
+        outputEventId: 'tool_msg_1'
+      }
+    });
+    expect(trace.nodesById['task:task_1']).toMatchObject({
+      kind: 'task',
+      title: 'material_asset_agent',
+      status: 'running'
+    });
+    expect(trace.evidenceByNodeId['tool:call_1']).toMatchObject([
+      { title: 'Tool input' },
+      { title: 'Tool output' }
+    ]);
+    expect(model.progressByRunId[runId]).toMatchObject([
+      {
+        id: `${runId}:async:task_1`,
+        title: 'material_asset_agent',
+        status: 'running',
+        producerNodeId: 'task:task_1'
+      }
+    ]);
   });
 });
 
@@ -369,5 +530,38 @@ function evidence(id: string, category: string, title: string): EvidenceCard {
     category,
     description: `${title}说明`,
     confidence: 'recorded'
+  };
+}
+
+function lifecycleEvent(id: string, seq: number, status: string, timestamp: string) {
+  return {
+    type: 'event',
+    event_id: id,
+    seq,
+    method: 'lifecycle',
+    params: {
+      namespace: [],
+      timestamp,
+      data: { event: status, graph_name: 'supervisor' }
+    }
+  };
+}
+
+function valuesEvent(
+  id: string,
+  seq: number,
+  namespace: string[],
+  data: Record<string, unknown>
+) {
+  return {
+    type: 'event',
+    event_id: id,
+    seq,
+    method: 'values',
+    params: {
+      namespace,
+      timestamp: `2026-05-14T09:41:${String(seq).padStart(2, '0')}.000Z`,
+      data
+    }
   };
 }

@@ -4,7 +4,7 @@
 
 **Goal:** Upgrade the right panel from a thread-level evidence drawer into a run-scoped task inspector that shows progress, execution trace, artifacts, citations, and diagnostics without hard-coding business agents, tool names, or file names.
 
-**Architecture:** Raw Agent Streaming Protocol events remain the source of truth, but the frontend must project them through platform models before rendering. The first implementation derives `InteractionRun` boundaries from user messages and lifecycle spans; a later backend enhancement can persist explicit `interaction_id` / `run_id` metadata for stronger correlation. The UI renders generic platform objects only: runs, progress items, trace nodes, evidence, artifacts, citations, diagnostics, and raw events.
+**Architecture:** Raw Agent Streaming Protocol events remain the source of truth, but the frontend must project them through platform models before rendering. The implementation derives `InteractionRun` boundaries from user messages and lifecycle spans now, while leaving room for explicit `interaction_id` / `run_id` metadata later. The UI renders generic platform objects only: runs, progress items, trace nodes, evidence, artifacts, citations, diagnostics, and raw events.
 
 **Tech Stack:** React 19, TypeScript, Vite, Vitest, `@langchain/react`, FastAPI, Python 3.11, DeepAgents / LangGraph Agent Streaming Protocol.
 
@@ -16,8 +16,24 @@
 - Do not classify by concrete tool names such as `write_todos`, `task`, or `inspect_interview_card_schema`.
 - Do not classify by fixed artifact file names such as `asset_index.json`, `missing_info.json`, or `meeting_brief.md`.
 - Use platform signals first: `namespace`, `tool_call_id`, lifecycle spans, message role/type, todo shape, file/artifact descriptors, MIME type, JSON/table/Markdown shape, and custom event envelopes.
-- Treat existing `summary_cards` as a compatibility fallback. New UI should prefer typed projections from `technical_events`.
+- Do not build new UI on `summary_cards`. The right panel must use typed projections from `technical_events`.
 - The default right-panel scope is the current user interaction, not the entire thread.
+
+## Iteration Correction Notes
+
+The first Run Inspector pass made the tab structure clearer, but it dropped too much execution observability from the previous design. The corrective direction is:
+
+- Keep the run-scoped inspector and trace-first model.
+- Reconnect official live subagent streaming through `stream.subagents` and scoped `useMessages`.
+- Show subagent cards in the Progress tab with status, task input, recent output, final output preview, and elapsed time.
+- Preserve generic tool metadata on trace nodes: `toolCallId`, `toolName`, `inputEventId`, `outputEventId`, and `errorEventId`.
+- Render selected tool nodes with a dedicated details block before evidence, including namespace ownership, start/end time, duration, and input/output/error evidence counts.
+- Project namespace-scoped message content into trace evidence so Agent output is visible in the node detail, not hidden in raw protocol events.
+- Remove top-level aggregate statistics from the first viewport. The panel should lead with the selected user interaction, status, and timing; counts belong in trace/detail views.
+- Project tool calls from `values.messages[*].tool_calls` and `tool` messages because real archived evidence may not include standalone `method: tools` events.
+- Project `values.async_tasks` into progress items and trace task nodes so async agent scheduling and execution state are visible without hard-coded agent names.
+
+This correction must remain protocol-driven. It must not restore hard-coded business categories or fixed agent/tool/file mappings.
 
 ## Target Information Architecture
 
@@ -28,15 +44,12 @@ Header:
 - User request summary.
 - Run status: `running`, `complete`, `error`, `waiting`, or `unknown`.
 - Duration.
-- Agent count.
-- Tool call count.
-- Todo progress.
-- Artifact count.
-- Diagnostic count.
+- Interaction selector for switching between user turns.
+- No global thread-level aggregate statistics in the first viewport.
 
 Tabs:
 
-- `进度`: default tab. Shows current todo/progress state, active nodes, latest output, and compact run metrics.
+- `进度`: default tab. Shows current todo/progress state, async task state, active nodes, latest output, and live subagent cards for the active run.
 - `链路`: trace-first execution tree and selected node details.
 - `产物`: Codex-like run-scoped artifact viewer for generated Markdown, JSON, tables, preview blocks, and artifact bundles.
 - `依据`: claim/citation/evidence view. Shows why final outputs say what they say.
@@ -128,8 +141,8 @@ export interface RunInspectorModel {
 - Modify `frontend/src/workspaceView.test.ts`: projection tests using realistic duplicate `values` snapshots and lifecycle spans.
 - Modify `frontend/src/App.tsx`: replace evidence drawer tab model with run inspector UI.
 - Modify `frontend/src/styles.css`: right-panel layout, progress, trace, artifact, citation, and diagnostic styles.
-- Modify `frontend/src/api.ts`: keep current API shape; only add types if backend response evolves.
-- Modify `backend/src/agent_pilot/evidence.py`: later task only, add deduped event metadata and optional typed archive response while preserving current response.
+- Modify `frontend/src/api.ts`: remove right-panel dependence on summary card categories.
+- Modify `backend/src/agent_pilot/evidence.py`: return raw technical events plus event statistics for the new projection path.
 - Modify `docs/deepagents-execution-detail-p0.md`: document the new run-scoped projection rules and UI contract.
 
 ## Task 1: Add Run Boundary Projection Tests
@@ -531,7 +544,7 @@ npm test -- workspaceView.test.ts
 
 Expected: all `workspaceView.test.ts` tests pass.
 
-## Task 3: Scope Existing Trace Rendering to the Active Run
+## Task 3: Scope Trace Rendering to the Active Run
 
 **Files:**
 
@@ -556,15 +569,9 @@ const activeRun = runInspector.runs.find((run) => run.id === runInspector.active
 const activeTrace = activeRun ? runInspector.traceByRunId[activeRun.id] : buildExecutionTraceModel([]);
 ```
 
-- [ ] **Step 2: Keep `ExecutionDetailModel` only as fallback**
+- [ ] **Step 2: Remove old evidence-detail projection from the right panel**
 
-Keep:
-
-```ts
-const executionDetails = useMemo(() => buildExecutionDetailModel(technicalEvents), [technicalEvents]);
-```
-
-but pass it only to a compatibility fallback when `activeTrace.nodes.length === 0`.
+Delete the right-panel use of `buildExecutionDetailModel`, `EvidenceGroups`, and category-based `visibleEvidence`.
 
 - [ ] **Step 3: Update right panel props**
 
@@ -578,7 +585,7 @@ activeRun={activeRun}
 activeTrace={activeTrace}
 ```
 
-Keep `visibleEvidence` temporarily for compatibility tabs until Task 4 removes the old tab model.
+Do not pass `visibleEvidence` or old evidence category props into the new drawer.
 
 - [ ] **Step 4: Run build**
 
@@ -1028,7 +1035,7 @@ Expected: build passes.
 - Modify: `backend/tests/test_api_startup.py` or create `backend/tests/test_evidence_archive.py`
 - Modify: `frontend/src/api.ts`
 
-- [ ] **Step 1: Add backend test for deduped metadata while preserving raw events**
+- [ ] **Step 1: Add backend test for deduped metadata and projection-first response**
 
 Create `backend/tests/test_evidence_archive.py`:
 
@@ -1054,6 +1061,7 @@ def test_evidence_archive_reports_unique_and_duplicate_event_counts() -> None:
         "duplicate_count": 1,
     }
     assert len(payload["technical_events"]) == 2
+    assert "summary_cards" not in payload
 ```
 
 - [ ] **Step 2: Implement `event_stats`**
@@ -1068,7 +1076,6 @@ In `backend/src/agent_pilot/evidence.py`, update `build_business_evidence`:
         unique_event_ids = set(event_ids)
         return {
             "thread_id": thread_id,
-            "summary_cards": summary_cards,
             "technical_events": events,
             "event_stats": {
                 "raw_count": len(events),
@@ -1093,6 +1100,7 @@ export interface EventStats {
 and update `ThreadEvidence`:
 
 ```ts
+summary_cards?: never;
 event_stats?: EventStats;
 ```
 

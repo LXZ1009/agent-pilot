@@ -24,10 +24,16 @@ export interface EvidenceCard {
   confidence: 'recorded' | string;
 }
 
+export interface EventStats {
+  raw_count: number;
+  unique_count: number;
+  duplicate_count: number;
+}
+
 export interface ThreadEvidence {
   thread_id: string;
-  summary_cards: EvidenceCard[];
   technical_events: unknown[];
+  event_stats: EventStats;
 }
 
 const API_ROOT = normalizeApiRoot(import.meta.env.VITE_API_ROOT ?? '/api');

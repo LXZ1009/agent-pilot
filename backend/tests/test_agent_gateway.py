@@ -10,6 +10,18 @@ class FakeAgentGateway:
     def __init__(self) -> None:
         self.commands = []
         self.stream_requests = []
+        self.events = [
+            {
+                "type": "event",
+                "event_id": "evt_001",
+                "seq": 1,
+                "method": "lifecycle",
+                "params": {
+                    "namespace": [],
+                    "data": {"event": "running", "graph_name": "supervisor"},
+                },
+            }
+        ]
 
     async def handle_command(self, thread_id, command):
         self.commands.append((thread_id, command))
@@ -21,16 +33,8 @@ class FakeAgentGateway:
 
     async def stream(self, thread_id, params):
         self.stream_requests.append((thread_id, params))
-        yield {
-            "type": "event",
-            "event_id": "evt_001",
-            "seq": 1,
-            "method": "lifecycle",
-            "params": {
-                "namespace": [],
-                "data": {"event": "running", "graph_name": "supervisor"},
-            },
-        }
+        for event in self.events:
+            yield event
 
 
 def test_agent_gateway_command_endpoint_uses_protocol_shape():
@@ -47,7 +51,7 @@ def test_agent_gateway_command_endpoint_uses_protocol_shape():
                     "method": "run.start",
                     "params": {
                         "assistant_id": "supervisor",
-                        "input": {"messages": [{"role": "user", "content": "生成物料"}]},
+                        "input": {"messages": [{"role": "user", "content": "generate assets"}]},
                     },
                 },
             )
@@ -80,13 +84,13 @@ def test_agent_gateway_stream_endpoint_returns_sse_events():
         assert response.headers["content-type"].startswith("text/event-stream")
         assert "id: evt_001" in response.text
         assert "event: message" in response.text
-        assert f"data: {json.dumps({'type': 'event', 'event_id': 'evt_001', 'seq': 1, 'method': 'lifecycle', 'params': {'namespace': [], 'data': {'event': 'running', 'graph_name': 'supervisor'}}}, ensure_ascii=False)}" in response.text
+        assert f"data: {json.dumps(gateway.events[0], ensure_ascii=False)}" in response.text
         assert gateway.stream_requests[0][0] == "thread_001"
 
     asyncio.run(scenario())
 
 
-def test_agent_gateway_archives_business_evidence_from_stream():
+def test_agent_gateway_archives_projection_first_events_from_stream():
     async def scenario():
         gateway = FakeAgentGateway()
         app = create_app(agent_gateway=gateway)
@@ -99,78 +103,81 @@ def test_agent_gateway_archives_business_evidence_from_stream():
             )
             response = await client.get("/api/threads/thread_001/evidence")
 
+        payload = response.json()
         assert response.status_code == 200
-        assert response.json()["thread_id"] == "thread_001"
-        assert response.json()["summary_cards"] == [
-            {
-                "id": "evt_001",
-                "title": "运行开始",
-                "description": "supervisor 开始处理本次任务。",
-                "category": "process",
-                "confidence": "recorded",
-            }
-        ]
+        assert payload["thread_id"] == "thread_001"
+        assert payload["technical_events"] == gateway.events
+        assert payload["event_stats"] == {
+            "raw_count": 1,
+            "unique_count": 1,
+            "duplicate_count": 0,
+        }
+        assert "summary_cards" not in payload
 
     asyncio.run(scenario())
 
 
-def test_evidence_projects_protocol_events_without_fixed_name_mappings():
+def test_evidence_endpoint_preserves_protocol_events_without_name_mappings():
     async def scenario():
         class EvidenceGateway(FakeAgentGateway):
-            async def stream(self, thread_id, params):
-                yield {
-                    "type": "event",
-                    "event_id": "evt_subagent",
-                    "seq": 1,
-                    "method": "updates",
-                    "params": {
-                        "namespace": ["arbitrary_research_agent:run-123"],
-                        "data": {"status": "running"},
-                    },
-                }
-                yield {
-                    "type": "event",
-                    "event_id": "evt_tool_call",
-                    "seq": 2,
-                    "method": "values",
-                    "params": {
-                        "namespace": [],
-                        "data": {
-                            "messages": [
-                                {
-                                    "role": "assistant",
-                                    "content": "",
-                                    "tool_calls": [
-                                        {
-                                            "name": "load_skill_manifest",
-                                            "args": {"skill": "meeting-interview"},
-                                        }
-                                    ],
-                                }
-                            ]
+            def __init__(self) -> None:
+                super().__init__()
+                self.events = [
+                    {
+                        "type": "event",
+                        "event_id": "evt_subagent",
+                        "seq": 1,
+                        "method": "updates",
+                        "params": {
+                            "namespace": ["arbitrary_research_agent:run-123"],
+                            "data": {"status": "running"},
                         },
                     },
-                }
-                yield {
-                    "type": "event",
-                    "event_id": "evt_tool_result",
-                    "seq": 3,
-                    "method": "values",
-                    "params": {
-                        "namespace": [],
-                        "data": {
-                            "messages": [
-                                {
-                                    "type": "tool",
-                                    "name": "load_skill_manifest",
-                                    "content": "{\"files\":[\"SKILL.md\"]}",
-                                }
-                            ]
+                    {
+                        "type": "event",
+                        "event_id": "evt_tool_call",
+                        "seq": 2,
+                        "method": "values",
+                        "params": {
+                            "namespace": [],
+                            "data": {
+                                "messages": [
+                                    {
+                                        "role": "assistant",
+                                        "content": "",
+                                        "tool_calls": [
+                                            {
+                                                "name": "load_skill_manifest",
+                                                "args": {"skill": "meeting-interview"},
+                                            }
+                                        ],
+                                    }
+                                ]
+                            },
                         },
                     },
-                }
+                    {
+                        "type": "event",
+                        "event_id": "evt_tool_result",
+                        "seq": 3,
+                        "method": "values",
+                        "params": {
+                            "namespace": [],
+                            "data": {
+                                "messages": [
+                                    {
+                                        "type": "tool",
+                                        "name": "load_skill_manifest",
+                                        "content": "{\"files\":[\"SKILL.md\"]}",
+                                    }
+                                ]
+                            },
+                        },
+                    },
+                ]
 
-        app = create_app(agent_gateway=EvidenceGateway())
+        gateway = EvidenceGateway()
+        app = create_app(agent_gateway=gateway)
         transport = ASGITransport(app=app)
 
         async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -180,29 +187,18 @@ def test_evidence_projects_protocol_events_without_fixed_name_mappings():
             )
             response = await client.get("/api/threads/thread_002/evidence")
 
+        payload = response.json()
         assert response.status_code == 200
-        assert response.json()["summary_cards"] == [
-            {
-                "id": "evt_subagent",
-                "title": "子流程事件：arbitrary_research_agent",
-                "description": "通道 updates 记录到 arbitrary_research_agent:run-123 的过程事件。",
-                "category": "process",
-                "confidence": "recorded",
-            },
-            {
-                "id": "evt_tool_call:load_skill_manifest",
-                "title": "工具调用：load_skill_manifest",
-                "description": "参数：{\"skill\": \"meeting-interview\"}",
-                "category": "process",
-                "confidence": "recorded",
-            },
-            {
-                "id": "evt_tool_result:load_skill_manifest",
-                "title": "工具返回：load_skill_manifest",
-                "description": "返回：{\"files\":[\"SKILL.md\"]}",
-                "category": "source",
-                "confidence": "recorded",
-            },
+        assert [event["event_id"] for event in payload["technical_events"]] == [
+            "evt_subagent",
+            "evt_tool_call",
+            "evt_tool_result",
         ]
+        assert payload["event_stats"] == {
+            "raw_count": 3,
+            "unique_count": 3,
+            "duplicate_count": 0,
+        }
+        assert "summary_cards" not in payload
 
     asyncio.run(scenario())

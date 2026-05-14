@@ -1,14 +1,8 @@
-import {
-  useMessages,
-  useStream,
-  type AnyStream,
-  type SubagentDiscoverySnapshot
-} from '@langchain/react';
+import { useMessages, useStream, type AnyStream, type SubagentDiscoverySnapshot } from '@langchain/react';
 import {
   AlertCircle,
   Bot,
   CheckCircle2,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Clock3,
@@ -20,7 +14,6 @@ import {
   Network,
   PanelRightClose,
   PanelRightOpen,
-  Search,
   Send,
   ShieldCheck,
   UserRound
@@ -29,31 +22,34 @@ import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 're
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-import { createAgentTransport, fetchThreadEvidence, type EvidenceCard } from './api';
+import { createAgentTransport, fetchThreadEvidence } from './api';
 import {
-  buildExecutionDetailModel,
   buildExecutionTraceModel,
-  buildEvidenceGroups,
+  buildRunInspectorModel,
   buildStreamErrorMessage,
   buildSubagentProcessCard,
-  buildTaskProgress,
   deriveTaskTitle,
   mergeConversationRows,
   normalizeStreamMessages,
   resolveEvidenceRefreshInterval,
+  type ArtifactDescriptor,
   type ConversationRow,
-  type ExecutionDetailItem,
-  type ExecutionDetailModel,
+  type DiagnosticItem,
   type ExecutionEvidence,
+  type ExecutionItemStatus,
   type ExecutionTraceModel,
-  type ExecutionTraceNode
+  type ExecutionTraceNode,
+  type InteractionRun,
+  type ProgressItem,
+  type ResultCitation,
+  type RunInspectorModel
 } from './workspaceView';
 
 type AgentState = {
   messages?: unknown[];
 };
 
-type EvidenceTab = 'process' | 'source' | 'missing' | 'technical';
+type InspectorTab = 'progress' | 'trace' | 'artifacts' | 'citations' | 'diagnostics';
 
 function createThreadId(): string {
   return globalThis.crypto?.randomUUID?.() ?? `thread_${Date.now()}`;
@@ -70,11 +66,10 @@ function App() {
 
   const [composer, setComposer] = useState('');
   const [localMessages, setLocalMessages] = useState<ConversationRow[]>([]);
-  const [evidence, setEvidence] = useState<EvidenceCard[]>([]);
   const [technicalEvents, setTechnicalEvents] = useState<unknown[]>([]);
   const [panelOpen, setPanelOpen] = useState(true);
-  const [evidenceTab, setEvidenceTab] = useState<EvidenceTab>('process');
-  const [openEvidenceId, setOpenEvidenceId] = useState<string | null>(null);
+  const [inspectorTab, setInspectorTab] = useState<InspectorTab>('progress');
+  const [selectedRunId, setSelectedRunId] = useState<string | undefined>();
   const [hasStartedRun, setHasStartedRun] = useState(false);
   const conversationEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -87,14 +82,30 @@ function App() {
     [localMessages, streamMessages]
   );
   const taskTitle = useMemo(() => deriveTaskTitle(messages), [messages]);
-  const evidenceGroups = useMemo(() => buildEvidenceGroups(evidence), [evidence]);
   const subagents = useMemo(() => [...stream.subagents.values()], [stream.subagents]);
-  const executionDetails = useMemo(() => buildExecutionDetailModel(technicalEvents), [technicalEvents]);
-  const executionTrace = useMemo(() => buildExecutionTraceModel(technicalEvents), [technicalEvents]);
-  const progress = useMemo(
-    () => buildTaskProgress({ evidenceCards: evidence, isLoading: stream.isLoading }),
-    [evidence, stream.isLoading]
+  const runInspector = useMemo(() => buildRunInspectorModel(technicalEvents), [technicalEvents]);
+  useEffect(() => {
+    const fallbackRunId = runInspector.activeRunId ?? runInspector.runs.at(-1)?.id;
+    if (!fallbackRunId) {
+      if (selectedRunId) setSelectedRunId(undefined);
+      return;
+    }
+    if (!selectedRunId || !runInspector.runs.some((run) => run.id === selectedRunId)) {
+      setSelectedRunId(fallbackRunId);
+    }
+  }, [runInspector, selectedRunId]);
+  const activeRun = useMemo(
+    () =>
+      runInspector.runs.find((run) => run.id === selectedRunId) ??
+      runInspector.runs.find((run) => run.id === runInspector.activeRunId) ??
+      runInspector.runs.at(-1),
+    [runInspector, selectedRunId]
   );
+  const activeTrace = useMemo(
+    () => (activeRun ? runInspector.traceByRunId[activeRun.id] : buildExecutionTraceModel([])),
+    [activeRun, runInspector]
+  );
+  const progress = useMemo(() => buildHeaderProgress(activeRun, stream.isLoading), [activeRun, stream.isLoading]);
   const streamErrorMessage = useMemo(
     () => buildStreamErrorMessage(stream.error, hasStartedRun),
     [hasStartedRun, stream.error]
@@ -102,7 +113,6 @@ function App() {
 
   const refreshEvidence = useCallback(async () => {
     const next = await fetchThreadEvidence(threadId);
-    setEvidence(next.summary_cards);
     setTechnicalEvents(next.technical_events);
   }, [threadId]);
 
@@ -131,7 +141,7 @@ function App() {
       {
         id: localId,
         role: 'user',
-        actor: '你',
+        actor: '用户',
         content: prompt
       }
     ]);
@@ -157,8 +167,6 @@ function App() {
     await submitPrompt(composer);
   }
 
-  const visibleEvidence = evidenceTab === 'technical' ? [] : evidenceGroups[evidenceTab];
-
   return (
     <div className="agent-workspace">
       <LeftNav threadId={threadId} taskTitle={taskTitle} progress={progress.percent} />
@@ -171,7 +179,7 @@ function App() {
           <div className="task-title">
             <div className="eyebrow">统一协同任务</div>
             <h1>{taskTitle}</h1>
-            <p>用户用自然语言发起任务，主控 Agent 根据意图调度既有协同能力；前端只展示执行状态、结果和依据。</p>
+            <p>用户以自然语言发起任务，平台按本轮交互展示进度、链路、产物、依据和诊断。</p>
           </div>
           <div className="header-actions">
             <StatusPill loading={stream.isLoading} label={progress.label} />
@@ -179,10 +187,10 @@ function App() {
               className="ghost-button"
               type="button"
               onClick={() => setPanelOpen((value) => !value)}
-              aria-label={panelOpen ? '收起生成依据' : '展开生成依据'}
+              aria-label={panelOpen ? '收起当前任务' : '展开当前任务'}
             >
               {panelOpen ? <PanelRightClose size={17} /> : <PanelRightOpen size={17} />}
-              生成依据
+              当前任务
             </button>
           </div>
         </header>
@@ -217,22 +225,33 @@ function App() {
         </form>
       </main>
 
-      <EvidencePanel
+      <RunInspectorPanel
         open={panelOpen}
         setOpen={setPanelOpen}
-        activeTab={evidenceTab}
-        setActiveTab={setEvidenceTab}
-        visibleEvidence={visibleEvidence}
+        activeTab={inspectorTab}
+        setActiveTab={setInspectorTab}
+        runInspector={runInspector}
+        activeRun={activeRun}
+        selectedRunId={activeRun?.id}
+        setSelectedRunId={setSelectedRunId}
+        activeTrace={activeTrace}
         stream={stream}
         subagents={subagents}
-        executionDetails={executionDetails}
-        executionTrace={executionTrace}
         technicalEvents={technicalEvents}
-        openEvidenceId={openEvidenceId}
-        setOpenEvidenceId={setOpenEvidenceId}
       />
     </div>
   );
+}
+
+function buildHeaderProgress(run: InteractionRun | undefined, isLoading: boolean): { percent: number; label: string } {
+  if (run?.metrics.todoTotal) {
+    const percent = Math.round((run.metrics.todoCompleted / run.metrics.todoTotal) * 100);
+    return { percent, label: isLoading ? '运行中' : runStatusLabel(run.status) };
+  }
+  if (isLoading || run?.status === 'running') return { percent: 45, label: '运行中' };
+  if (run?.status === 'complete') return { percent: 100, label: '已完成' };
+  if (run?.status === 'error') return { percent: 100, label: '异常' };
+  return { percent: 0, label: '待开始' };
 }
 
 function resolveErrorMessage(error: unknown): string {
@@ -259,60 +278,43 @@ function LeftNav({
         {[FolderKanban, Layers3, ShieldCheck, Database].map((Icon, index) => (
           <button
             key={index}
-            className={`rail-button ${index === 0 ? 'active' : ''}`}
+            className={`rail-button${index === 0 ? ' active' : ''}`}
             type="button"
             aria-label={`导航 ${index + 1}`}
           >
-            <Icon size={19} />
+            <Icon size={18} />
           </button>
         ))}
       </div>
-
       <div className="task-list-pane">
         <div className="nav-heading">
-          <strong>多 Agent 协同任务工作台</strong>
-          <span>Agent Pilot</span>
+          <strong>Agent Pilot</strong>
+          <span>Run Inspector</span>
         </div>
-        <label className="search-box">
-          <Search size={16} />
-          <input placeholder="搜索任务或会话" />
-        </label>
-
-        <div className="segment-control" aria-label="任务筛选">
-          <button className="active" type="button">全部</button>
-          <button type="button">我创建的</button>
-          <button type="button">收藏</button>
-        </div>
-
-        <section className="current-task-card">
+        <div className="current-task-card">
           <div className="task-card-header">
             <div>
-              <span>当前任务</span>
-              <strong>{taskTitle}</strong>
+              <span>Thread</span>
+              <strong>{threadId.slice(0, 8)}</strong>
             </div>
             <span className="progress-number">{progress}%</span>
           </div>
+          <small>{taskTitle}</small>
           <div className="progress-track">
             <div style={{ width: `${progress}%` }} />
           </div>
-          <small>Thread: {threadId.slice(0, 18)}</small>
-        </section>
-
-        <section className="guidance-list">
-          <div className="section-title">平台工作方式</div>
+        </div>
+        <div className="guidance-list">
+          <div className="section-title">工作区</div>
           <div>
-            <strong>自然语言触发</strong>
-            <span>平台不要求用户先选择任务类型，任务意图由主控 Agent 理解。</span>
+            <strong>当前任务</strong>
+            <span>按本轮对话聚合执行状态</span>
           </div>
           <div>
-            <strong>协同过程可追溯</strong>
-            <span>执行链路、阶段结果和证据摘要按任务运行过程沉淀。</span>
+            <strong>平台投影</strong>
+            <span>基于事件协议生成进度、链路和产物</span>
           </div>
-          <div>
-            <strong>结果优先展示</strong>
-            <span>依据面板默认作为辅助信息，用户需要时再查看。</span>
-          </div>
-        </section>
+        </div>
       </div>
     </aside>
   );
@@ -320,22 +322,22 @@ function LeftNav({
 
 function StatusPill({ loading, label }: { loading: boolean; label: string }) {
   return (
-    <span className={`status-pill ${loading ? 'running' : 'ready'}`}>
-      {loading ? <Loader2 className="spin" size={16} /> : <CheckCircle2 size={16} />}
+    <div className={`status-pill ${loading ? 'loading' : ''}`}>
+      {loading ? <Loader2 className="spin" size={14} /> : <CheckCircle2 size={14} />}
       {label}
-    </span>
+    </div>
   );
 }
 
 function EmptyConversation() {
   return (
-    <section className="empty-conversation">
+    <div className="empty-conversation">
       <div className="empty-icon">
-        <FileText size={30} />
+        <Bot size={27} />
       </div>
-      <h2>发起一个协同任务</h2>
-      <p>直接描述目标、上下文和期望结果即可。平台会把任务交给主控 Agent，由它判断需要哪些协同能力。</p>
-    </section>
+      <h2>开始一个多 Agent 协同任务</h2>
+      <p>输入目标后，右侧会按本轮任务展示进度、执行链路、产物、依据和诊断。</p>
+    </div>
   );
 }
 
@@ -343,7 +345,7 @@ function MessageRow({ message }: { message: ConversationRow }) {
   return (
     <article className={`message-row ${message.role}`}>
       <div className="message-avatar">
-        {message.role === 'user' ? <UserRound size={18} /> : message.role === 'system' ? <ShieldCheck size={18} /> : <Bot size={18} />}
+        {message.role === 'user' ? <UserRound size={17} /> : <Bot size={17} />}
       </div>
       <div className="message-bubble">
         <div className="message-meta">
@@ -359,17 +361,15 @@ function ProcessingMessage() {
   return (
     <article className="message-row assistant processing">
       <div className="message-avatar">
-        <Bot size={18} />
+        <Bot size={17} />
       </div>
       <div className="message-bubble">
         <div className="message-meta">
-          <strong>PricingMeetingAgent</strong>
+          <strong>Agent</strong>
         </div>
         <div className="typing-line">
-          <span />
-          <span />
-          <span />
-          正在理解任务并调度协同能力
+          <Loader2 className="spin" size={15} />
+          正在协同处理
         </div>
       </div>
     </article>
@@ -378,54 +378,58 @@ function ProcessingMessage() {
 
 function SystemNotice({ message }: { message: string }) {
   return (
-    <article className="message-row system">
-      <div className="message-avatar">
-        <ShieldCheck size={18} />
-      </div>
-      <div className="message-bubble">
-        <div className="message-meta">
-          <strong>系统</strong>
-        </div>
+    <article className="system-notice">
+      <AlertCircle size={18} />
+      <div>
+        <strong>系统</strong>
         <p>{message}</p>
       </div>
     </article>
   );
 }
 
-function EvidencePanel({
+function RunInspectorPanel({
   open,
   setOpen,
   activeTab,
   setActiveTab,
-  visibleEvidence,
+  runInspector,
+  activeRun,
+  selectedRunId,
+  setSelectedRunId,
+  activeTrace,
   stream,
   subagents,
-  executionDetails,
-  executionTrace,
-  technicalEvents,
-  openEvidenceId,
-  setOpenEvidenceId
+  technicalEvents
 }: {
   open: boolean;
   setOpen: (open: boolean) => void;
-  activeTab: EvidenceTab;
-  setActiveTab: (tab: EvidenceTab) => void;
-  visibleEvidence: EvidenceCard[];
+  activeTab: InspectorTab;
+  setActiveTab: (tab: InspectorTab) => void;
+  runInspector: RunInspectorModel;
+  activeRun?: InteractionRun;
+  selectedRunId?: string;
+  setSelectedRunId: (runId: string) => void;
+  activeTrace: ExecutionTraceModel;
   stream: AnyStream;
   subagents: SubagentDiscoverySnapshot[];
-  executionDetails: ExecutionDetailModel;
-  executionTrace: ExecutionTraceModel;
   technicalEvents: unknown[];
-  openEvidenceId: string | null;
-  setOpenEvidenceId: (id: string | null) => void;
 }) {
+  const activeRunId = activeRun?.id;
+  const progressItems = activeRunId ? runInspector.progressByRunId[activeRunId] ?? [] : [];
+  const artifacts = activeRunId ? runInspector.artifactsByRunId[activeRunId] ?? [] : [];
+  const citations = activeRunId ? runInspector.citationsByRunId[activeRunId] ?? [] : [];
+  const diagnostics = activeRunId ? runInspector.diagnosticsByRunId[activeRunId] ?? [] : [];
+  const rawEvents = activeRunId ? runInspector.rawEventsByRunId[activeRunId] ?? [] : technicalEvents;
+  const liveSubagents = activeRunId === runInspector.activeRunId ? subagents : [];
+
   if (!open) {
     return (
       <aside className="evidence-closed">
-        <button type="button" onClick={() => setOpen(true)} aria-label="展开生成依据">
+        <button type="button" onClick={() => setOpen(true)} aria-label="展开当前任务">
           <ShieldCheck size={19} />
         </button>
-        <span>生成依据</span>
+        <span>当前任务</span>
       </aside>
     );
   }
@@ -436,131 +440,322 @@ function EvidencePanel({
         <div>
           <div className="evidence-title">
             <ShieldCheck size={19} />
-            <h2>生成依据</h2>
+            <h2>当前任务</h2>
           </div>
-          <p>当用户对结果有疑问时，可查看过程摘要、引用来源和缺失信息。</p>
+          <p>按本轮交互查看进度、链路、产物、依据和诊断。</p>
         </div>
-        <button className="icon-button" type="button" onClick={() => setOpen(false)} aria-label="收起生成依据">
+        <button className="icon-button" type="button" onClick={() => setOpen(false)} aria-label="收起当前任务">
           <ChevronRight size={18} />
         </button>
       </header>
 
-      <nav className="evidence-tabs" aria-label="生成依据分类">
-        <TabButton active={activeTab === 'process'} onClick={() => setActiveTab('process')} label="处理过程" />
-        <TabButton active={activeTab === 'source'} onClick={() => setActiveTab('source')} label="引用来源" />
-        <TabButton active={activeTab === 'missing'} onClick={() => setActiveTab('missing')} label="缺失信息" />
-        <TabButton active={activeTab === 'technical'} onClick={() => setActiveTab('technical')} label="技术详情" />
+      <RunInspectorHeader run={activeRun} runIndex={resolveRunIndex(runInspector.runs, activeRun?.id)} totalRuns={runInspector.runs.length} />
+
+      <RunSelector runs={runInspector.runs} selectedRunId={selectedRunId} onSelect={setSelectedRunId} />
+
+      <nav className="evidence-tabs" aria-label="当前任务视图">
+        <TabButton active={activeTab === 'progress'} onClick={() => setActiveTab('progress')} label="进度" />
+        <TabButton active={activeTab === 'trace'} onClick={() => setActiveTab('trace')} label="链路" />
+        <TabButton active={activeTab === 'artifacts'} onClick={() => setActiveTab('artifacts')} label="产物" />
+        <TabButton active={activeTab === 'citations'} onClick={() => setActiveTab('citations')} label="依据" />
+        <TabButton active={activeTab === 'diagnostics'} onClick={() => setActiveTab('diagnostics')} label="诊断" />
       </nav>
 
       <div className="evidence-scroll">
-        {activeTab === 'technical' ? (
-          <section className="technical-panel">
-            <div className="section-title">协议事件</div>
-            <pre>{JSON.stringify(technicalEvents, null, 2)}</pre>
-          </section>
-        ) : activeTab === 'process' ? (
-          <ProcessEvidenceContent
-            stream={stream}
-            subagents={subagents}
-            executionDetails={executionDetails}
-            executionTrace={executionTrace}
-            visibleEvidence={visibleEvidence}
-            openEvidenceId={openEvidenceId}
-            setOpenEvidenceId={setOpenEvidenceId}
-          />
-        ) : visibleEvidence.length > 0 ? (
-          <div className="timeline-list">
-            {visibleEvidence.map((item) => {
-              const expanded = openEvidenceId === item.id;
-              return (
-                <article key={item.id} className="timeline-node">
-                  <div className="timeline-dot">
-                    <Clock3 size={15} />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setOpenEvidenceId(expanded ? null : item.id)}
-                    aria-expanded={expanded}
-                  >
-                    <div>
-                      <strong>{item.title}</strong>
-                      <p>{item.description}</p>
-                    </div>
-                    {expanded ? <ChevronDown size={17} /> : <ChevronRight size={17} />}
-                  </button>
-                  {expanded && (
-                    <div className="timeline-detail">
-                      <span>可信度：系统记录</span>
-                      <span>展示层级：用户可选查看</span>
-                    </div>
-                  )}
-                </article>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="empty-evidence">
-            <ShieldCheck size={28} />
-            <strong>暂无此类依据</strong>
-            <p>任务执行后会自动沉淀到这里。</p>
-          </div>
+        {activeTab === 'progress' && (
+          <ProgressTab items={progressItems} trace={activeTrace} stream={stream} subagents={liveSubagents} />
         )}
+        {activeTab === 'trace' && <ExecutionTraceContent trace={activeTrace} />}
+        {activeTab === 'artifacts' && <ArtifactsTab artifacts={artifacts} />}
+        {activeTab === 'citations' && <CitationsTab citations={citations} trace={activeTrace} />}
+        {activeTab === 'diagnostics' && <DiagnosticsTab diagnostics={diagnostics} rawEvents={rawEvents} />}
       </div>
     </aside>
   );
 }
 
-function ProcessEvidenceContent({
-  stream,
-  subagents,
-  executionDetails,
-  executionTrace,
-  visibleEvidence,
-  openEvidenceId,
-  setOpenEvidenceId
+function RunInspectorHeader({
+  run,
+  runIndex,
+  totalRuns
 }: {
-  stream: AnyStream;
-  subagents: SubagentDiscoverySnapshot[];
-  executionDetails: ExecutionDetailModel;
-  executionTrace: ExecutionTraceModel;
-  visibleEvidence: EvidenceCard[];
-  openEvidenceId: string | null;
-  setOpenEvidenceId: (id: string | null) => void;
+  run?: InteractionRun;
+  runIndex: number;
+  totalRuns: number;
 }) {
-  const hasExecutionTrace = executionTrace.nodes.length > 0;
-  const hasExecutionDetails =
-    !hasExecutionTrace &&
-    (executionDetails.plan.length > 0 ||
-      executionDetails.subagents.length > 0 ||
-      executionDetails.tools.length > 0 ||
-      executionDetails.tasks.length > 0 ||
-      executionDetails.artifacts.length > 0 ||
-      executionDetails.errors.length > 0 ||
-      executionDetails.rawEvents.length > 0);
-
-  if (subagents.length === 0 && visibleEvidence.length === 0 && !hasExecutionTrace && !hasExecutionDetails) {
+  if (!run) {
     return (
-      <div className="empty-evidence">
-        <ShieldCheck size={28} />
-        <strong>暂无处理过程</strong>
-        <p>任务执行后会在这里显示子 Agent 进度和过程证据。</p>
-      </div>
+      <section className="run-inspector-summary">
+        <div>
+          <strong>等待任务事件</strong>
+          <span>本轮任务开始后会生成运行检查视图</span>
+        </div>
+      </section>
     );
   }
 
   return (
+    <section className="run-inspector-summary">
+      <div>
+        <span>{totalRuns > 0 ? `第 ${runIndex + 1} 轮交互` : '当前交互'}</span>
+        <strong>{run.title}</strong>
+        <div className="run-inspector-meta">
+          <span>{runStatusLabel(run.status)}</span>
+          <span>{formatTraceTime(run.startedAt)} - {formatTraceTime(run.completedAt)}</span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function RunSelector({
+  runs,
+  selectedRunId,
+  onSelect
+}: {
+  runs: InteractionRun[];
+  selectedRunId?: string;
+  onSelect: (runId: string) => void;
+}) {
+  return (
+    <nav className="run-selector" aria-label="交互轮次">
+      {runs.map((run, index) => (
+        <button
+          key={run.id}
+          className={run.id === selectedRunId ? 'active' : ''}
+          type="button"
+          onClick={() => onSelect(run.id)}
+        >
+          <strong>{index + 1}</strong>
+          <span>{runStatusLabel(run.status)}</span>
+        </button>
+      ))}
+    </nav>
+  );
+}
+
+function ProgressTab({
+  items,
+  trace,
+  stream,
+  subagents
+}: {
+  items: ProgressItem[];
+  trace: ExecutionTraceModel;
+  stream: AnyStream;
+  subagents: SubagentDiscoverySnapshot[];
+}) {
+  const activeNodes = trace.nodes.filter((node) => node.status === 'running');
+  if (items.length === 0 && activeNodes.length === 0 && subagents.length === 0) {
+    return <EmptyPanel title="暂无进度" description="任务开始后会显示计划、待办和实时状态。" />;
+  }
+
+  return (
     <>
-      {hasExecutionTrace ? <ExecutionTraceContent trace={executionTrace} /> : null}
-      {hasExecutionDetails && <ExecutionDetailContent details={executionDetails} />}
       {subagents.length > 0 && <SubagentProcessList stream={stream} subagents={subagents} />}
-      {visibleEvidence.length > 0 && (
-        <EvidenceTimelineList
-          visibleEvidence={visibleEvidence}
-          openEvidenceId={openEvidenceId}
-          setOpenEvidenceId={setOpenEvidenceId}
-        />
+      {(items.length > 0 || activeNodes.length > 0) && (
+        <section className="progress-step-list">
+          {items.map((item) => (
+            <ProgressItemCard key={item.id} item={item} />
+          ))}
+          {activeNodes.map((node) => (
+            <div key={node.id} className={`progress-step ${node.status}`}>
+              <span />
+              <div>
+                <strong>{node.title}</strong>
+                <em>{traceNodeKindLabel(node.kind)}</em>
+              </div>
+            </div>
+          ))}
+        </section>
       )}
     </>
+  );
+}
+
+function ProgressItemCard({ item }: { item: ProgressItem }) {
+  const metadata = (item.metadata ?? {}) as Record<string, unknown>;
+  const taskId = typeof metadata.task_id === 'string' ? metadata.task_id : '';
+  const runId = typeof metadata.run_id === 'string' ? metadata.run_id : '';
+  const updatedAt =
+    typeof metadata.last_updated_at === 'string'
+      ? metadata.last_updated_at
+      : typeof metadata.last_updated === 'string'
+        ? metadata.last_updated
+        : item.timestamp;
+  const description = [
+    taskId ? `task ${taskId.slice(0, 8)}` : '',
+    runId ? `run ${runId.slice(0, 8)}` : '',
+    updatedAt ? formatTraceTime(updatedAt) : ''
+  ].filter(Boolean);
+
+  return (
+    <div className={`progress-step ${item.status}`}>
+      <span />
+      <div>
+        <strong>{item.title}</strong>
+        <em>{executionStatusLabel(item.status)}</em>
+        {description.length > 0 && <small>{description.join(' / ')}</small>}
+      </div>
+    </div>
+  );
+}
+
+function SubagentProcessList({
+  stream,
+  subagents
+}: {
+  stream: AnyStream;
+  subagents: SubagentDiscoverySnapshot[];
+}) {
+  const completed = subagents.filter((subagent) => subagent.status === 'complete').length;
+  const total = subagents.length;
+  const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+  return (
+    <section className="subagent-process">
+      <div className="subagent-process-header">
+        <div>
+          <strong>子 Agent 执行</strong>
+          <span>{completed}/{total} 已完成</span>
+        </div>
+        <div className="subagent-progress-track" aria-hidden="true">
+          <div style={{ width: `${percent}%` }} />
+        </div>
+      </div>
+      <div className="subagent-card-list">
+        {subagents.map((subagent) => (
+          <SubagentProcessItem key={subagent.id} stream={stream} subagent={subagent} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function SubagentProcessItem({
+  stream,
+  subagent
+}: {
+  stream: AnyStream;
+  subagent: SubagentDiscoverySnapshot;
+}) {
+  const messages = useMessages(stream, subagent);
+  const card = buildSubagentProcessCard(subagent, messages);
+
+  return (
+    <article className={`subagent-card ${card.status}`}>
+      <div className="subagent-card-top">
+        <div className="subagent-status-icon">
+          {card.status === 'running' ? (
+            <Loader2 className="spin" size={15} />
+          ) : card.status === 'complete' ? (
+            <CheckCircle2 size={15} />
+          ) : (
+            <AlertCircle size={15} />
+          )}
+        </div>
+        <div>
+          <strong>{card.title}</strong>
+          <span>{card.description}</span>
+        </div>
+        <span className="subagent-status-badge">{card.statusLabel}</span>
+      </div>
+      <div className="subagent-preview">
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{card.preview}</ReactMarkdown>
+      </div>
+      {card.elapsedLabel && <div className="subagent-elapsed">耗时 {card.elapsedLabel}</div>}
+    </article>
+  );
+}
+function ArtifactsTab({ artifacts }: { artifacts: ArtifactDescriptor[] }) {
+  const [selectedId, setSelectedId] = useState(artifacts[0]?.id ?? '');
+  const selected = artifacts.find((artifact) => artifact.id === selectedId) ?? artifacts[0];
+
+  useEffect(() => {
+    if (!selectedId && artifacts[0]) setSelectedId(artifacts[0].id);
+  }, [artifacts, selectedId]);
+
+  if (artifacts.length === 0) {
+    return <EmptyPanel title="暂无产物" description="本轮任务生成文件或结构化结果后会显示在这里。" />;
+  }
+
+  return (
+    <section className="artifact-viewer">
+      <div className="artifact-list">
+        {artifacts.map((artifact) => (
+          <button
+            key={artifact.id}
+            className={artifact.id === selected?.id ? 'active' : ''}
+            type="button"
+            onClick={() => setSelectedId(artifact.id)}
+          >
+            <strong>{artifact.title}</strong>
+            <span>{artifact.mimeType || artifact.kind}</span>
+          </button>
+        ))}
+      </div>
+      {selected && <ArtifactPreview artifact={selected} />}
+    </section>
+  );
+}
+
+function ArtifactPreview({ artifact }: { artifact: ArtifactDescriptor }) {
+  if (artifact.content !== undefined && artifact.kind === 'table') {
+    return <EvidenceTable content={artifact.content} />;
+  }
+  if (typeof artifact.content === 'string' && artifact.kind === 'document') {
+    return <ReactMarkdown remarkPlugins={[remarkGfm]}>{artifact.content}</ReactMarkdown>;
+  }
+  if (artifact.content !== undefined) {
+    return <pre className="evidence-code json">{JSON.stringify(artifact.content, null, 2)}</pre>;
+  }
+  return (
+    <div className="artifact-preview-empty">
+      <strong>{artifact.title}</strong>
+      <span>{artifact.uri || artifact.summary || '产物内容需要通过后端 artifact API 获取。'}</span>
+    </div>
+  );
+}
+
+function CitationsTab({ citations, trace }: { citations: ResultCitation[]; trace: ExecutionTraceModel }) {
+  if (citations.length === 0) {
+    return <EmptyPanel title="暂无依据映射" description="产物或最终结论声明引用后，会在这里关联到过程证据。" />;
+  }
+  return (
+    <section className="citation-list">
+      {citations.map((citation) => {
+        const evidence = trace.evidence.find((item) => item.id === citation.evidenceId);
+        return (
+          <article key={citation.id} className="citation-item">
+            <strong>{citation.claimId}</strong>
+            <span>{evidence?.summary || citation.evidenceId}</span>
+          </article>
+        );
+      })}
+    </section>
+  );
+}
+
+function DiagnosticsTab({ diagnostics, rawEvents }: { diagnostics: DiagnosticItem[]; rawEvents: unknown[] }) {
+  if (diagnostics.length === 0 && rawEvents.length === 0) {
+    return <EmptyPanel title="暂无诊断" description="异常、缺失字段、警告和技术事件会显示在这里。" />;
+  }
+  return (
+    <section className="diagnostic-list">
+      {diagnostics.map((item) => (
+        <details key={item.id} className={`diagnostic-item ${item.severity}`}>
+          <summary>
+            <strong>{item.title}</strong>
+            <span>{item.summary}</span>
+          </summary>
+          {item.content !== undefined && <pre className="evidence-code json">{JSON.stringify(item.content, null, 2)}</pre>}
+        </details>
+      ))}
+      <details className="technical-panel">
+        <summary>协议事件</summary>
+        <pre>{JSON.stringify(rawEvents, null, 2)}</pre>
+      </details>
+    </section>
   );
 }
 
@@ -575,12 +770,16 @@ function ExecutionTraceContent({ trace }: { trace: ExecutionTraceModel }) {
     }
   }, [selectedNodeId, trace]);
 
+  if (trace.nodes.length === 0) {
+    return <EmptyPanel title="暂无链路" description="本轮任务产生执行节点后会显示在这里。" />;
+  }
+
   return (
     <section className="trace-detail">
       <div className="trace-header">
         <div>
           <strong>执行链路</strong>
-          <span>按 namespace 和工具调用归属组织</span>
+          <span>按 namespace、工具调用和产物归属组织</span>
         </div>
         <div className={`execution-error-count ${trace.summary.errorCount > 0 ? 'active' : ''}`}>
           <AlertCircle size={14} />
@@ -663,7 +862,7 @@ function TraceNodeDetail({
         <div className="trace-node-icon large">{renderTraceNodeIcon(node)}</div>
         <div>
           <strong>{node.title}</strong>
-          <span>{traceNodeKindLabel(node.kind)} · {executionStatusLabel(node.status)}</span>
+          <span>{traceNodeKindLabel(node.kind)} / {executionStatusLabel(node.status)}</span>
         </div>
       </header>
 
@@ -674,6 +873,8 @@ function TraceNodeDetail({
       </div>
 
       {node.summary && <p className="trace-node-summary">{node.summary}</p>}
+      {node.kind === 'tool' && <ToolCallDetail node={node} evidence={evidence} />}
+      {node.kind === 'task' && <TaskNodeDetail node={node} />}
 
       {childNodes.length > 0 && (
         <div className="trace-child-list">
@@ -689,6 +890,90 @@ function TraceNodeDetail({
       )}
 
       <EvidenceList evidence={evidence} />
+    </section>
+  );
+}
+
+function TaskNodeDetail({ node }: { node: ExecutionTraceNode }) {
+  const taskId = readNodeMetaString(node, 'taskId') || readNodeMetaString(node, 'task_id') || node.id.replace(/^task:/, '');
+  const runId = readNodeMetaString(node, 'run_id');
+  const threadId = readNodeMetaString(node, 'thread_id');
+  const agentName = readNodeMetaString(node, 'agent_name') || readNodeMetaString(node, 'name') || node.title;
+
+  return (
+    <section className="tool-call-detail">
+      <div className="execution-section-title">Async task detail</div>
+      <dl className="tool-call-grid">
+        <div>
+          <dt>Agent</dt>
+          <dd>{agentName}</dd>
+        </div>
+        <div>
+          <dt>Task ID</dt>
+          <dd>{taskId}</dd>
+        </div>
+        <div>
+          <dt>Run ID</dt>
+          <dd>{runId || '-'}</dd>
+        </div>
+        <div>
+          <dt>Thread</dt>
+          <dd>{threadId || '-'}</dd>
+        </div>
+        <div>
+          <dt>Start</dt>
+          <dd>{formatTraceTime(node.startedAt)}</dd>
+        </div>
+        <div>
+          <dt>End</dt>
+          <dd>{formatTraceTime(node.completedAt)}</dd>
+        </div>
+      </dl>
+    </section>
+  );
+}
+
+function ToolCallDetail({ node, evidence }: { node: ExecutionTraceNode; evidence: ExecutionEvidence[] }) {
+  const inputEvidence = evidence.filter((item) => item.title.toLowerCase().includes('input'));
+  const outputEvidence = evidence.filter((item) => item.title.toLowerCase().includes('output'));
+  const errorEvidence = evidence.filter((item) => item.kind === 'error');
+  const toolCallId = readNodeMetaString(node, 'toolCallId') || node.id.replace(/^tool:/, '');
+  const toolName = readNodeMetaString(node, 'toolName') || node.title;
+
+  return (
+    <section className="tool-call-detail">
+      <div className="execution-section-title">工具调用详情</div>
+      <dl className="tool-call-grid">
+        <div>
+          <dt>工具</dt>
+          <dd>{toolName}</dd>
+        </div>
+        <div>
+          <dt>调用 ID</dt>
+          <dd>{toolCallId}</dd>
+        </div>
+        <div>
+          <dt>归属</dt>
+          <dd>{node.namespace.join(' / ') || 'root'}</dd>
+        </div>
+        <div>
+          <dt>开始</dt>
+          <dd>{formatTraceTime(node.startedAt)}</dd>
+        </div>
+        <div>
+          <dt>结束</dt>
+          <dd>{formatTraceTime(node.completedAt)}</dd>
+        </div>
+        <div>
+          <dt>耗时</dt>
+          <dd>{formatTraceDuration(node.startedAt, node.completedAt)}</dd>
+        </div>
+      </dl>
+      <div className="tool-call-evidence-strip">
+        <span>入参 {inputEvidence.length}</span>
+        <span>返回 {outputEvidence.length}</span>
+        <span className={errorEvidence.length > 0 ? 'danger' : ''}>异常 {errorEvidence.length}</span>
+      </div>
     </section>
   );
 }
@@ -762,6 +1047,16 @@ function EvidenceTable({ content }: { content: unknown }) {
   );
 }
 
+function EmptyPanel({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="empty-evidence">
+      <ShieldCheck size={28} />
+      <strong>{title}</strong>
+      <p>{description}</p>
+    </div>
+  );
+}
+
 function selectDefaultTraceNode(trace: ExecutionTraceModel): string {
   const errorNode = trace.nodes.find((node) => node.status === 'error');
   if (errorNode) return errorNode.id;
@@ -787,7 +1082,7 @@ function traceNodeMeta(node: ExecutionTraceNode): string {
     node.metrics.evidenceCount > 0 ? `${node.metrics.evidenceCount} 证据` : '',
     node.metrics.artifactCount > 0 ? `${node.metrics.artifactCount} 产物` : ''
   ].filter(Boolean);
-  return parts.join(' · ');
+  return parts.join(' / ');
 }
 
 function traceNodeKindLabel(kind: ExecutionTraceNode['kind']): string {
@@ -839,40 +1134,34 @@ function formatCell(value: unknown): string {
   return JSON.stringify(value);
 }
 
-function ExecutionDetailContent({ details }: { details: ExecutionDetailModel }) {
-  return (
-    <section className="execution-detail">
-      <div className="execution-detail-header">
-        <div>
-          <strong>执行详情</strong>
-          <span>按通用事件模型汇总</span>
-        </div>
-        <div className={`execution-error-count ${details.errors.length > 0 ? 'active' : ''}`}>
-          <AlertCircle size={14} />
-          {details.errors.length}
-        </div>
-      </div>
-
-      <div className="execution-summary-grid">
-        <ExecutionMetric label="计划" value={details.plan.length} />
-        <ExecutionMetric label="子 Agent" value={details.subagents.length} />
-        <ExecutionMetric label="工具" value={details.tools.length} />
-        <ExecutionMetric label="任务" value={details.tasks.length} />
-        <ExecutionMetric label="产物" value={details.artifacts.length} />
-      </div>
-
-      <ExecutionSection title="执行计划" items={details.plan} />
-      <ExecutionSection title="子 Agent 事件" items={details.subagents} />
-      <ExecutionSection title="工具调用" items={details.tools} />
-      <ExecutionSection title="异步任务" items={details.tasks} />
-      <ExecutionSection title="产物" items={details.artifacts} />
-      <ExecutionSection title="异常" items={details.errors} tone="danger" />
-      <ExecutionSection title="原始事件摘要" items={details.rawEvents.slice(0, 8)} compact />
-    </section>
-  );
+function resolveRunIndex(runs: InteractionRun[], runId?: string): number {
+  const index = runs.findIndex((run) => run.id === runId);
+  return index >= 0 ? index : Math.max(0, runs.length - 1);
 }
 
-function ExecutionMetric({ label, value }: { label: string; value: number }) {
+function readNodeMetaString(node: ExecutionTraceNode, key: string): string {
+  const value = node.metadata?.[key];
+  return typeof value === 'string' ? value : '';
+}
+
+function formatTraceTime(value?: string): string {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+function formatTraceDuration(startedAt?: string, completedAt?: string): string {
+  if (!startedAt || !completedAt) return '-';
+  const start = new Date(startedAt).getTime();
+  const end = new Date(completedAt).getTime();
+  if (Number.isNaN(start) || Number.isNaN(end)) return '-';
+  const seconds = Math.max(0, Math.round((end - start) / 1000));
+  if (seconds < 60) return `${seconds}s`;
+  return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+}
+
+function ExecutionMetric({ label, value }: { label: string; value: number | string }) {
   return (
     <div className="execution-metric">
       <span>{label}</span>
@@ -881,52 +1170,7 @@ function ExecutionMetric({ label, value }: { label: string; value: number }) {
   );
 }
 
-function ExecutionSection({
-  title,
-  items,
-  tone = 'default',
-  compact = false
-}: {
-  title: string;
-  items: ExecutionDetailItem[];
-  tone?: 'default' | 'danger';
-  compact?: boolean;
-}) {
-  if (items.length === 0) return null;
-
-  return (
-    <div className={`execution-section ${tone} ${compact ? 'compact' : ''}`}>
-      <div className="execution-section-title">{title}</div>
-      <div className="execution-item-list">
-        {items.map((item) => (
-          <article key={`${item.kind}:${item.id}`} className={`execution-item ${item.status}`}>
-            <div className="execution-item-icon">{renderExecutionIcon(item)}</div>
-            <div>
-              <div className="execution-item-line">
-                <strong>{item.title}</strong>
-                <span>{executionStatusLabel(item.status)}</span>
-              </div>
-              {item.description && <p>{item.description}</p>}
-              {item.namespaceLabel && <small>{item.namespaceLabel}</small>}
-            </div>
-          </article>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function renderExecutionIcon(item: ExecutionDetailItem) {
-  if (item.status === 'error') return <AlertCircle size={14} />;
-  if (item.status === 'complete') return <CheckCircle2 size={14} />;
-  if (item.kind === 'artifact') return <FileText size={14} />;
-  if (item.kind === 'subagent') return <Bot size={14} />;
-  if (item.kind === 'task') return <Clock3 size={14} />;
-  if (item.kind === 'tool') return <Database size={14} />;
-  return <Clock3 size={14} />;
-}
-
-function executionStatusLabel(status: ExecutionDetailItem['status']): string {
+function executionStatusLabel(status: ExecutionItemStatus): string {
   if (status === 'pending') return '待执行';
   if (status === 'running') return '运行中';
   if (status === 'complete') return '已完成';
@@ -934,113 +1178,12 @@ function executionStatusLabel(status: ExecutionDetailItem['status']): string {
   return '已记录';
 }
 
-function SubagentProcessList({
-  stream,
-  subagents
-}: {
-  stream: AnyStream;
-  subagents: SubagentDiscoverySnapshot[];
-}) {
-  const completed = subagents.filter((subagent) => subagent.status === 'complete').length;
-  const total = subagents.length;
-  const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
-
-  return (
-    <section className="subagent-process">
-      <div className="subagent-process-header">
-        <div>
-          <strong>子 Agent 执行详情</strong>
-          <span>{completed}/{total} 已完成</span>
-        </div>
-        <div className="subagent-progress-track" aria-hidden="true">
-          <div style={{ width: `${percent}%` }} />
-        </div>
-      </div>
-      <div className="subagent-card-list">
-        {subagents.map((subagent) => (
-          <SubagentProcessItem key={subagent.id} stream={stream} subagent={subagent} />
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function SubagentProcessItem({
-  stream,
-  subagent
-}: {
-  stream: AnyStream;
-  subagent: SubagentDiscoverySnapshot;
-}) {
-  const messages = useMessages(stream, subagent);
-  const card = buildSubagentProcessCard(subagent, messages);
-
-  return (
-    <article className={`subagent-card ${card.status}`}>
-      <div className="subagent-card-top">
-        <div className="subagent-status-icon">
-          {card.status === 'running' ? (
-            <Loader2 className="spin" size={15} />
-          ) : card.status === 'complete' ? (
-            <CheckCircle2 size={15} />
-          ) : (
-            <AlertCircle size={15} />
-          )}
-        </div>
-        <div>
-          <strong>{card.title}</strong>
-          <span>{card.description}</span>
-        </div>
-        <span className="subagent-status-badge">{card.statusLabel}</span>
-      </div>
-      <div className="subagent-preview">
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{card.preview}</ReactMarkdown>
-      </div>
-      {card.elapsedLabel && <div className="subagent-elapsed">耗时 {card.elapsedLabel}</div>}
-    </article>
-  );
-}
-
-function EvidenceTimelineList({
-  visibleEvidence,
-  openEvidenceId,
-  setOpenEvidenceId
-}: {
-  visibleEvidence: EvidenceCard[];
-  openEvidenceId: string | null;
-  setOpenEvidenceId: (id: string | null) => void;
-}) {
-  return (
-    <div className="timeline-list">
-      {visibleEvidence.map((item) => {
-        const expanded = openEvidenceId === item.id;
-        return (
-          <article key={item.id} className="timeline-node">
-            <div className="timeline-dot">
-              <Clock3 size={15} />
-            </div>
-            <button
-              type="button"
-              onClick={() => setOpenEvidenceId(expanded ? null : item.id)}
-              aria-expanded={expanded}
-            >
-              <div>
-                <strong>{item.title}</strong>
-                <p>{item.description}</p>
-              </div>
-              {expanded ? <ChevronDown size={17} /> : <ChevronRight size={17} />}
-            </button>
-            {expanded && (
-              <div className="timeline-detail">
-                <span>可信度：系统记录</span>
-                <span>展示层级：用户可选查看</span>
-              </div>
-            )}
-          </article>
-        );
-      })}
-    </div>
-  );
+function runStatusLabel(status: InteractionRun['status']): string {
+  if (status === 'running') return '运行中';
+  if (status === 'complete') return '已完成';
+  if (status === 'error') return '异常';
+  if (status === 'waiting') return '等待用户';
+  return '已记录';
 }
 
 function TabButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {

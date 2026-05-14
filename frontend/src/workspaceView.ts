@@ -99,6 +99,7 @@ export interface ExecutionTraceNode {
   completedAt?: string;
   summary?: string;
   children: string[];
+  metadata?: Record<string, unknown>;
   metrics: {
     durationMs?: number;
     toolCallCount: number;
@@ -140,6 +141,80 @@ export interface ExecutionTraceModel {
     artifactCount: number;
     errorCount: number;
   };
+}
+
+export type InteractionRunStatus = 'running' | 'complete' | 'error' | 'waiting' | 'unknown';
+
+export interface RunMetrics {
+  agentCount: number;
+  toolCallCount: number;
+  todoTotal: number;
+  todoCompleted: number;
+  artifactCount: number;
+  citationCount: number;
+  diagnosticCount: number;
+  duplicateEventCount: number;
+}
+
+export interface InteractionRun {
+  id: string;
+  threadId?: string;
+  title: string;
+  userMessageId?: string;
+  startedAt?: string;
+  completedAt?: string;
+  status: InteractionRunStatus;
+  eventIds: string[];
+  lifecycleEventIds: string[];
+  rootNodeIds: string[];
+  metrics: RunMetrics;
+}
+
+export interface ProgressItem {
+  id: string;
+  runId: string;
+  title: string;
+  status: ExecutionItemStatus;
+  timestamp?: string;
+  producerNodeId?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface ArtifactDescriptor {
+  id: string;
+  runId: string;
+  title: string;
+  uri?: string;
+  mimeType?: string;
+  kind: 'document' | 'data' | 'table' | 'preview' | 'bundle' | 'link' | 'unknown';
+  summary?: string;
+  producerNodeId?: string;
+  schemaRef?: string;
+  content?: unknown;
+  metadata?: Record<string, unknown>;
+}
+
+export interface DiagnosticItem {
+  id: string;
+  runId: string;
+  severity: 'info' | 'warning' | 'error';
+  type: 'missing_fields' | 'error' | 'warning' | 'interrupt' | 'duplicate_events' | 'raw';
+  title: string;
+  summary: string;
+  producerNodeId?: string;
+  evidenceIds: string[];
+  content?: unknown;
+}
+
+export interface RunInspectorModel {
+  runs: InteractionRun[];
+  activeRunId?: string;
+  progressByRunId: Record<string, ProgressItem[]>;
+  traceByRunId: Record<string, ExecutionTraceModel>;
+  artifactsByRunId: Record<string, ArtifactDescriptor[]>;
+  citationsByRunId: Record<string, ResultCitation[]>;
+  diagnosticsByRunId: Record<string, DiagnosticItem[]>;
+  rawEventsByRunId: Record<string, unknown[]>;
 }
 
 export function deriveTaskTitle(messages: ConversationRow[]): string {
@@ -312,6 +387,340 @@ export function buildExecutionTraceModel(events: unknown[]): ExecutionTraceModel
   return trace;
 }
 
+export function buildRunInspectorModel(events: unknown[]): RunInspectorModel {
+  const deduped = dedupeEvents(events);
+  const runs = buildInteractionRuns(deduped.events, deduped.duplicateCount);
+  const rawEventsByRunId = assignEventsToRuns(deduped.events, runs);
+  const traceByRunId: Record<string, ExecutionTraceModel> = {};
+  const progressByRunId: Record<string, ProgressItem[]> = {};
+  const artifactsByRunId: Record<string, ArtifactDescriptor[]> = {};
+  const citationsByRunId: Record<string, ResultCitation[]> = {};
+  const diagnosticsByRunId: Record<string, DiagnosticItem[]> = {};
+
+  runs.forEach((run) => {
+    const runEvents = rawEventsByRunId[run.id] ?? [];
+    const trace = buildExecutionTraceModel(runEvents);
+    const progress = projectRunProgress(run.id, runEvents);
+    const artifacts = projectRunArtifacts(run.id, runEvents);
+    const diagnostics = projectRunDiagnostics(run.id, runEvents, deduped.duplicateCount);
+
+    traceByRunId[run.id] = trace;
+    progressByRunId[run.id] = progress;
+    artifactsByRunId[run.id] = artifacts;
+    citationsByRunId[run.id] = trace.citations;
+    diagnosticsByRunId[run.id] = diagnostics;
+    run.rootNodeIds = trace.rootNodeIds;
+    run.metrics = calculateRunMetrics(trace, progress, artifacts, trace.citations, diagnostics, deduped.duplicateCount);
+  });
+
+  return {
+    runs,
+    activeRunId: runs.at(-1)?.id,
+    progressByRunId,
+    traceByRunId,
+    artifactsByRunId,
+    citationsByRunId,
+    diagnosticsByRunId,
+    rawEventsByRunId
+  };
+}
+
+function dedupeEvents(events: unknown[]): { events: unknown[]; duplicateCount: number } {
+  const seen = new Set<string>();
+  const uniqueEvents: unknown[] = [];
+  let duplicateCount = 0;
+
+  events.forEach((event, index) => {
+    const eventId = resolveEventId(event, index);
+    if (seen.has(eventId)) {
+      duplicateCount += 1;
+      return;
+    }
+    seen.add(eventId);
+    uniqueEvents.push(event);
+  });
+
+  return { events: uniqueEvents, duplicateCount };
+}
+
+function buildInteractionRuns(events: unknown[], duplicateCount: number): InteractionRun[] {
+  const runs: InteractionRun[] = [];
+  let activeRun: InteractionRun | null = null;
+
+  events.forEach((event, index) => {
+    const envelope = asRecord(event);
+    const params = asRecord(envelope.params);
+    const data = asRecord(params.data);
+    const eventId = resolveEventId(event, index);
+    const method = readString(envelope.method) || readString(envelope.type);
+    const timestamp = readString(params.timestamp) || undefined;
+    const lifecycleEvent = readString(data.event);
+
+    if (method === 'lifecycle' && lifecycleEvent === 'running') {
+      activeRun = createInteractionRun(eventId, timestamp, duplicateCount);
+      runs.push(activeRun);
+      return;
+    }
+
+    if (!activeRun) {
+      activeRun = createInteractionRun(eventId, timestamp, duplicateCount, 'unknown');
+      runs.push(activeRun);
+    }
+
+    activeRun.eventIds.push(eventId);
+    assignUserMessageTitle(activeRun, data);
+
+    if (method === 'lifecycle') {
+      activeRun.lifecycleEventIds.push(eventId);
+      if (lifecycleEvent === 'completed') {
+        activeRun.status = 'complete';
+        activeRun.completedAt = timestamp;
+        activeRun = null;
+      } else if (lifecycleEvent === 'failed' || lifecycleEvent === 'error') {
+        activeRun.status = 'error';
+        activeRun.completedAt = timestamp;
+        activeRun = null;
+      }
+    }
+  });
+
+  return runs;
+}
+
+function createInteractionRun(
+  eventId: string,
+  timestamp: string | undefined,
+  duplicateCount: number,
+  status: InteractionRunStatus = 'running'
+): InteractionRun {
+  return {
+    id: `run:${eventId}`,
+    title: 'Current task',
+    startedAt: timestamp,
+    status,
+    eventIds: [eventId],
+    lifecycleEventIds: [eventId],
+    rootNodeIds: [],
+    metrics: emptyRunMetrics(duplicateCount)
+  };
+}
+
+function assignUserMessageTitle(run: InteractionRun, data: Record<string, unknown>): void {
+  const message = firstUserMessage(data);
+  if (!message) return;
+  run.userMessageId = readString(message.id) || run.userMessageId;
+  run.title = excerpt(resolveContent(message), 48) || run.title;
+}
+
+function firstUserMessage(data: Record<string, unknown>): Record<string, unknown> | null {
+  const messages = Array.isArray(data.messages) ? data.messages : [];
+  for (const message of messages) {
+    const item = asRecord(message);
+    const kind = resolveMessageKind(item);
+    if (resolveRole(kind) === 'user') return item;
+  }
+  return null;
+}
+
+function assignEventsToRuns(events: unknown[], runs: InteractionRun[]): Record<string, unknown[]> {
+  const eventsByRunId = Object.fromEntries(runs.map((run) => [run.id, [] as unknown[]]));
+  const runByEventId = new Map<string, string>();
+  runs.forEach((run) => run.eventIds.forEach((eventId) => runByEventId.set(eventId, run.id)));
+
+  events.forEach((event, index) => {
+    const runId = runByEventId.get(resolveEventId(event, index));
+    if (!runId) return;
+    eventsByRunId[runId] = [...(eventsByRunId[runId] || []), event];
+  });
+
+  return eventsByRunId;
+}
+
+function projectRunProgress(runId: string, events: unknown[]): ProgressItem[] {
+  const latestByKey = new Map<string, ProgressItem>();
+  events.forEach((event, eventIndex) => {
+    const envelope = asRecord(event);
+    const params = asRecord(envelope.params);
+    const data = asRecord(params.data);
+    const timestamp = readString(params.timestamp) || undefined;
+    const todos = Array.isArray(data.todos) ? data.todos : [];
+
+    todos.forEach((todo, todoIndex) => {
+      const item = asRecord(todo);
+      const title = readString(item.content) || readString(item.title) || readString(item.task);
+      if (!title) return;
+      latestByKey.set(`todo:${readString(item.id) || title}`, {
+        id: readString(item.id) || `${runId}:todo:${eventIndex}:${todoIndex}`,
+        runId,
+        title,
+        status: resolveEventStatus(readString(item.status)),
+        timestamp,
+        metadata: item
+      });
+    });
+
+    collectRecordItems(data.async_tasks).forEach(({ key, value }, taskIndex) => {
+      const taskId = readString(value.task_id) || readString(value.id) || key || `${eventIndex}:${taskIndex}`;
+      const title =
+        readString(value.title) ||
+        readString(value.name) ||
+        readString(value.agent_name) ||
+        readString(value.task_name) ||
+        `Async task ${taskId.slice(0, 8)}`;
+      latestByKey.set(`async:${taskId}`, {
+        id: `${runId}:async:${taskId}`,
+        runId,
+        title,
+        status: resolveEventStatus(readString(value.status) || readString(value.event)),
+        timestamp: readString(value.last_updated_at) || readString(value.last_updated) || timestamp,
+        producerNodeId: `task:${taskId}`,
+        metadata: { ...value, task_id: taskId }
+      });
+    });
+  });
+
+  return [...latestByKey.values()];
+}
+
+function projectRunArtifacts(runId: string, events: unknown[]): ArtifactDescriptor[] {
+  const artifacts: ArtifactDescriptor[] = [];
+  events.forEach((event, eventIndex) => {
+    const envelope = asRecord(event);
+    const params = asRecord(envelope.params);
+    const data = asRecord(params.data);
+    const method = readString(envelope.method) || readString(envelope.type);
+
+    if (method === 'custom') {
+      const type = readString(data.type) || readString(data.event);
+      if (type === 'artifact.created' || type === 'artifact.updated') {
+        artifacts.push(
+          toArtifactDescriptor(runId, `${runId}:artifact:${eventIndex}`, asRecord(data.artifact), data)
+        );
+      }
+    }
+
+    const files = asRecord(data.files);
+    Object.entries(files).forEach(([uri, content], fileIndex) => {
+      artifacts.push(
+        toArtifactDescriptor(runId, `${runId}:file:${eventIndex}:${fileIndex}`, { uri, content }, data)
+      );
+    });
+  });
+  return artifacts;
+}
+
+function toArtifactDescriptor(
+  runId: string,
+  fallbackId: string,
+  artifact: Record<string, unknown>,
+  metadata: Record<string, unknown>
+): ArtifactDescriptor {
+  const mimeType = readString(artifact.mime_type) || readString(artifact.mimeType) || undefined;
+  const uri = readString(artifact.uri) || undefined;
+  const content = artifact.content;
+  const title =
+    readString(metadata.title) ||
+    readString(artifact.title) ||
+    readString(artifact.name) ||
+    uri ||
+    'Artifact';
+
+  return {
+    id: readString(artifact.id) || fallbackId,
+    runId,
+    title,
+    uri,
+    mimeType,
+    kind: inferArtifactKind(mimeType || '', uri || '', content),
+    summary: readString(metadata.summary) || readString(artifact.summary) || undefined,
+    schemaRef: readString(artifact.schema_ref) || readString(artifact.schemaRef) || undefined,
+    content,
+    metadata
+  };
+}
+
+function inferArtifactKind(mimeType: string, uri: string, content: unknown): ArtifactDescriptor['kind'] {
+  if (mimeType.includes('markdown') || uri.endsWith('.md')) return 'document';
+  if (mimeType.includes('json') || uri.endsWith('.json')) return hasTableShape(content) ? 'table' : 'data';
+  if (mimeType.startsWith('text/')) return 'document';
+  if (uri.startsWith('http://') || uri.startsWith('https://')) return 'link';
+  if (typeof content === 'object' && content !== null) return hasTableShape(content) ? 'table' : 'data';
+  return 'unknown';
+}
+
+function projectRunDiagnostics(runId: string, events: unknown[], duplicateCount: number): DiagnosticItem[] {
+  const diagnostics: DiagnosticItem[] = [];
+  if (duplicateCount > 0) {
+    diagnostics.push({
+      id: `${runId}:duplicates`,
+      runId,
+      severity: 'info',
+      type: 'duplicate_events',
+      title: 'Duplicate events folded',
+      summary: `${duplicateCount} duplicate events were hidden from operator views`,
+      evidenceIds: []
+    });
+  }
+
+  events.forEach((event, index) => {
+    const envelope = asRecord(event);
+    const params = asRecord(envelope.params);
+    const data = asRecord(params.data);
+    const error = data.error ?? data.exception;
+    if (resolveGenericStatus(data) !== 'error' && error === undefined) return;
+    diagnostics.push({
+      id: `${runId}:error:${index}`,
+      runId,
+      severity: 'error',
+      type: 'error',
+      title: readString(data.title) || 'Execution error',
+      summary: excerpt(error ?? data),
+      evidenceIds: [],
+      content: data
+    });
+  });
+
+  return diagnostics;
+}
+
+function calculateRunMetrics(
+  trace: ExecutionTraceModel,
+  progress: ProgressItem[],
+  artifacts: ArtifactDescriptor[],
+  citations: ResultCitation[],
+  diagnostics: DiagnosticItem[],
+  duplicateCount: number
+): RunMetrics {
+  return {
+    agentCount: trace.nodes.filter((node) => node.kind === 'agent').length,
+    toolCallCount: trace.nodes.filter((node) => node.kind === 'tool').length,
+    todoTotal: progress.length,
+    todoCompleted: progress.filter((item) => item.status === 'complete').length,
+    artifactCount: artifacts.length || trace.summary.artifactCount,
+    citationCount: citations.length,
+    diagnosticCount: diagnostics.length,
+    duplicateEventCount: duplicateCount
+  };
+}
+
+function emptyRunMetrics(duplicateCount: number): RunMetrics {
+  return {
+    agentCount: 0,
+    toolCallCount: 0,
+    todoTotal: 0,
+    todoCompleted: 0,
+    artifactCount: 0,
+    citationCount: 0,
+    diagnosticCount: 0,
+    duplicateEventCount: duplicateCount
+  };
+}
+
+function resolveEventId(event: unknown, index: number): string {
+  const envelope = asRecord(event);
+  return readString(envelope.event_id) || readString(envelope.id) || `event_${index}`;
+}
+
 function toConversationKey(row: ConversationRow): string {
   return `${row.role}:${row.content.trim()}`;
 }
@@ -347,10 +756,28 @@ function projectTraceEvent(trace: ExecutionTraceModel, event: unknown, index: nu
     return;
   }
 
+  if (method === 'values' || method === 'updates') {
+    projectTraceValuesEvent(trace, eventId, data, namespace, parentId, timestamp);
+    return;
+  }
+
   if (method === 'messages' && parentId) {
     updateNodeStatus(trace.nodesById[parentId], 'running', timestamp);
-    const summary = readString(data.event) || 'message event';
+    const content = resolveContent(data);
+    const summary = isDisplayableContent(content) ? excerpt(content) : readString(data.event) || 'message event';
     if (!trace.nodesById[parentId].summary) trace.nodesById[parentId].summary = summary;
+    if (isDisplayableContent(content)) {
+      addEvidence(trace, {
+        id: `${eventId}:message`,
+        nodeId: parentId,
+        kind: 'message',
+        title: 'Agent message',
+        summary,
+        content,
+        language: 'text',
+        metadata: data
+      });
+    }
     return;
   }
 
@@ -381,6 +808,171 @@ function projectTraceEvent(trace: ExecutionTraceModel, event: unknown, index: nu
   }
 }
 
+function projectTraceValuesEvent(
+  trace: ExecutionTraceModel,
+  eventId: string,
+  data: Record<string, unknown>,
+  namespace: string[],
+  parentId?: string,
+  timestamp?: string
+): void {
+  const messages = Array.isArray(data.messages) ? data.messages : [];
+  messages.forEach((message, messageIndex) => {
+    projectTraceMessageSnapshot(trace, `${eventId}:message:${messageIndex}`, asRecord(message), namespace, parentId, timestamp);
+  });
+
+  collectRecordItems(data.tasks).forEach(({ value }, taskIndex) => {
+    projectTraceTaskEvent(trace, `${eventId}:task:${taskIndex}`, value, namespace, parentId, timestamp);
+  });
+
+  collectRecordItems(data.async_tasks).forEach(({ key, value }, taskIndex) => {
+    const taskId = readString(value.task_id) || readString(value.id) || key || `${eventId}:${taskIndex}`;
+    projectTraceTaskEvent(
+      trace,
+      `${eventId}:async:${taskIndex}`,
+      { ...value, task_id: taskId, name: readString(value.agent_name) || readString(value.name), event: readString(value.status) },
+      namespace,
+      parentId,
+      readString(value.last_updated_at) || readString(value.last_updated) || timestamp
+    );
+  });
+}
+
+function projectTraceMessageSnapshot(
+  trace: ExecutionTraceModel,
+  fallbackId: string,
+  message: Record<string, unknown>,
+  namespace: string[],
+  parentId?: string,
+  timestamp?: string
+): void {
+  const messageId = readString(message.id) || fallbackId;
+  const kind = resolveMessageKind(message);
+  const role = resolveRole(kind);
+
+  if (role === 'user') {
+    const node = ensureTraceNode(trace, {
+      id: `user:${messageId}`,
+      kind: 'user',
+      title: 'User',
+      status: 'complete',
+      namespace,
+      timestamp,
+      metadata: { messageId }
+    });
+    const content = resolveContent(message);
+    if (isDisplayableContent(content)) {
+      addEvidence(trace, {
+        id: `${messageId}:message`,
+        nodeId: node.id,
+        kind: 'message',
+        title: 'User message',
+        summary: excerpt(content),
+        content,
+        language: 'text',
+        metadata: message
+      });
+    }
+    return;
+  }
+
+  if (isInternalMessageKind(kind)) {
+    projectTraceToolMessage(trace, messageId, message, namespace, parentId, timestamp);
+    return;
+  }
+
+  const ownerId = ensureMessageOwnerNode(trace, message, namespace, parentId, timestamp);
+  const content = resolveContent(message);
+  if (isDisplayableContent(content)) {
+    const summary = excerpt(content);
+    const owner = trace.nodesById[ownerId];
+    if (owner && !owner.summary) owner.summary = summary;
+    addEvidence(trace, {
+      id: `${messageId}:message`,
+      nodeId: ownerId,
+      kind: 'message',
+      title: 'Agent message',
+      summary,
+      content,
+      language: 'text',
+      metadata: message
+    });
+  }
+
+  const toolCalls = Array.isArray(message.tool_calls) ? message.tool_calls : [];
+  toolCalls.forEach((toolCall, index) => {
+    const item = asRecord(toolCall);
+    const toolCallId = readString(item.id) || readString(item.tool_call_id) || `${messageId}:tool:${index}`;
+    const toolName = readString(item.name) || readString(item.tool_name) || 'tool';
+    const input = item.args ?? item.input;
+    const node = ensureTraceNode(trace, {
+      id: `tool:${toolCallId}`,
+      kind: 'tool',
+      title: toolName,
+      status: 'running',
+      namespace,
+      parentId: ownerId,
+      timestamp,
+      metadata: { toolCallId, toolName, inputEventId: messageId }
+    });
+    if (input !== undefined) {
+      addEvidence(trace, createToolEvidence(`${toolCallId}:input`, node.id, 'Tool input', input, item));
+    }
+  });
+}
+
+function projectTraceToolMessage(
+  trace: ExecutionTraceModel,
+  messageId: string,
+  message: Record<string, unknown>,
+  namespace: string[],
+  parentId?: string,
+  timestamp?: string
+): void {
+  const toolCallId = readString(message.tool_call_id) || readString(message.id) || messageId;
+  const toolName = readString(message.name) || readString(message.tool_name) || 'tool';
+  const status = resolveEventStatus(readString(message.status)) === 'unknown'
+    ? 'complete'
+    : resolveEventStatus(readString(message.status));
+  const node = ensureTraceNode(trace, {
+    id: `tool:${toolCallId}`,
+    kind: 'tool',
+    title: toolName,
+    status,
+    namespace,
+    parentId,
+    timestamp,
+    metadata: { toolCallId, toolName, outputEventId: messageId }
+  });
+  const content = parseStructuredText(resolveContent(message));
+  addEvidence(trace, createToolEvidence(`${toolCallId}:output`, node.id, 'Tool output', content, message));
+}
+
+function ensureMessageOwnerNode(
+  trace: ExecutionTraceModel,
+  message: Record<string, unknown>,
+  namespace: string[],
+  parentId?: string,
+  timestamp?: string
+): string {
+  if (parentId && trace.nodesById[parentId]) {
+    updateNodeStatus(trace.nodesById[parentId], 'running', timestamp);
+    return parentId;
+  }
+
+  const name = readString(message.name) || readString(message.agent_name) || 'Supervisor';
+  const node = ensureTraceNode(trace, {
+    id: `supervisor:${name}`,
+    kind: 'supervisor',
+    title: name,
+    status: 'running',
+    namespace,
+    timestamp,
+    metadata: { messageId: readString(message.id) || undefined }
+  });
+  return node.id;
+}
+
 function projectTraceToolEvent(
   trace: ExecutionTraceModel,
   eventId: string,
@@ -393,6 +985,8 @@ function projectTraceToolEvent(
   const nodeId = `tool:${toolCallId}`;
   const toolName = readString(data.tool_name) || readString(data.name) || 'tool';
   const status = resolveEventStatus(readString(data.event));
+  const input = data.input;
+  const output = data.output;
   const node = ensureTraceNode(trace, {
     id: nodeId,
     kind: 'tool',
@@ -400,15 +994,20 @@ function projectTraceToolEvent(
     status,
     namespace,
     parentId,
-    timestamp
+    timestamp,
+    metadata: {
+      toolCallId,
+      toolName,
+      ...(input !== undefined ? { inputEventId: eventId } : {}),
+      ...(output !== undefined ? { outputEventId: eventId } : {}),
+      ...(data.error !== undefined ? { errorEventId: eventId } : {})
+    }
   });
 
-  const input = data.input;
   if (input !== undefined) {
     addEvidence(trace, createToolEvidence(`${eventId}:input`, node.id, 'Tool input', input, data));
   }
 
-  const output = data.output;
   if (output !== undefined) {
     addEvidence(trace, createToolEvidence(`${eventId}:output`, node.id, 'Tool output', output, data));
   }
@@ -487,7 +1086,8 @@ function projectTraceTaskEvent(
     status: resolveEventStatus(readString(data.event) || readString(data.status)),
     namespace,
     parentId,
-    timestamp
+    timestamp,
+    metadata: { ...data, taskId }
   });
 }
 
@@ -520,11 +1120,13 @@ function ensureTraceNode(
     namespace: string[];
     parentId?: string;
     timestamp?: string;
+    metadata?: Record<string, unknown>;
   }
 ): ExecutionTraceNode {
   const existing = trace.nodesById[input.id];
   if (existing) {
     updateNodeStatus(existing, input.status, input.timestamp);
+    if (input.metadata) existing.metadata = { ...(existing.metadata ?? {}), ...input.metadata };
     return existing;
   }
 
@@ -538,6 +1140,7 @@ function ensureTraceNode(
     startedAt: input.timestamp,
     completedAt: input.status === 'complete' || input.status === 'error' ? input.timestamp : undefined,
     children: [],
+    metadata: input.metadata,
     metrics: {
       toolCallCount: 0,
       evidenceCount: 0,
@@ -567,6 +1170,7 @@ function updateNodeStatus(node: ExecutionTraceNode, status: ExecutionItemStatus,
 }
 
 function addEvidence(trace: ExecutionTraceModel, evidence: ExecutionEvidence): void {
+  if (trace.evidence.some((item) => item.id === evidence.id)) return;
   trace.evidence.push(evidence);
   trace.evidenceByNodeId[evidence.nodeId] = [...(trace.evidenceByNodeId[evidence.nodeId] || []), evidence];
   const node = trace.nodesById[evidence.nodeId];
@@ -950,7 +1554,14 @@ function baseExecutionItem(item: ExecutionDetailItem): ExecutionDetailItem {
 function resolveEventStatus(value: string): ExecutionItemStatus {
   const status = value.toLowerCase();
   if (status.includes('error') || status.includes('fail') || status === 'rejected') return 'error';
-  if (status.includes('complete') || status.includes('finish') || status.includes('done') || status === 'approved') {
+  if (
+    status.includes('complete') ||
+    status.includes('finish') ||
+    status.includes('done') ||
+    status === 'approved' ||
+    status === 'success' ||
+    status === 'succeeded'
+  ) {
     return 'complete';
   }
   if (status.includes('start') || status.includes('run') || status.includes('progress') || status.includes('pending')) {
@@ -973,6 +1584,14 @@ function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
 
+function collectRecordItems(value: unknown): Array<{ key: string; value: Record<string, unknown> }> {
+  if (Array.isArray(value)) {
+    return value.map((item, index) => ({ key: String(index), value: asRecord(item) }));
+  }
+  const record = asRecord(value);
+  return Object.entries(record).map(([key, item]) => ({ key, value: asRecord(item) }));
+}
+
 function readString(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
@@ -987,6 +1606,17 @@ function excerpt(value: unknown, limit = 180): string {
   const text = typeof value === 'string' ? value : JSON.stringify(value);
   const normalized = text.replace(/\s+/g, ' ').trim();
   return normalized.length <= limit ? normalized : `${normalized.slice(0, limit - 3)}...`;
+}
+
+function parseStructuredText(value: string): unknown {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  if (!/^[{\[]/.test(trimmed)) return value;
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return value;
+  }
 }
 
 function resolveMessageKind(message: unknown): string {

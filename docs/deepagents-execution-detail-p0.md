@@ -28,33 +28,40 @@ The backend streams Agent Streaming Protocol events through:
 - `lifecycle`
 
 The frontend stores raw events from `/api/threads/{thread_id}/evidence` and
-projects them with `buildExecutionDetailModel` in
-`frontend/src/workspaceView.ts`.
+projects them with `buildRunInspectorModel` in `frontend/src/workspaceView.ts`.
 
 While a stream is running, the frontend refreshes evidence on a short interval
-so the generic execution sections can hydrate before the final run completes.
-Scoped subagent message cards still use `useMessages(stream, subagent)` for
-message-level real-time projection.
+so the active interaction run can hydrate before the final run completes.
 
-## Generic Sections
+## Run Inspector
 
-The first P0 version rendered flat generic sections:
+The right panel is a run-scoped task inspector, not a thread-level evidence
+category drawer. A thread may contain multiple supervisor lifecycle spans and
+repeated `values` snapshots, so the platform projects raw events through these
+stages:
 
-- `plan`: todo/progress items discovered from `values.todos`, `updates.todos`,
-  or custom `plan.*` / `todo.*` events.
-- `subagents`: namespace-scoped events that are not already represented as a
-  more specific tool/task/artifact event.
-- `tools`: normalized tool start, finish, and error events.
-- `tasks`: async or long-running task events from the `tasks` channel or custom
-  `task.*` events.
-- `artifacts`: files, JSON, Markdown, links, or other produced outputs.
-- `errors`: lifecycle, message, tool, or custom error events.
-- `rawEvents`: fallback summaries for events that the platform does not yet
-  understand.
+1. dedupe by `event_id` for operator views;
+2. split events into `InteractionRun` objects;
+3. derive progress, trace, artifacts, citations, and diagnostics for the
+   selected interaction run;
+4. preserve raw events in the Diagnostics tab.
 
-The `technical` tab still shows the full raw JSON event list.
+The panel must optimize for "what happened in this user interaction" rather
+than global thread statistics. Overall counts are secondary debugging context
+and should not occupy the top of the panel.
 
-## Trace-First Panel
+The UI tabs are:
+
+- `Progress`: current todos, async tasks, live subagents for the active run,
+  and active nodes.
+- `Trace`: selectable execution graph and node-owned evidence.
+- `Artifacts`: run-scoped artifact viewer for Markdown, JSON, tables, previews,
+  and links.
+- `Citations`: claim-to-evidence mappings when final outputs declare them.
+- `Diagnostics`: missing fields, warnings, errors, duplicate event counts, and
+  raw protocol events.
+
+## Trace Projection
 
 The process panel now prefers `ExecutionTraceModel` over flat event sections.
 This model is platform-level and must not depend on business scenarios, agent
@@ -66,17 +73,17 @@ Trace construction rules:
 - Build tool nodes from `tool_call_id`.
 - Build task nodes from generic `tasks` channel events or `task.*` custom
   events.
+- Also inspect `values.messages` snapshots. Some runtimes expose tool calls only
+  through assistant `tool_calls` and `tool` messages rather than separate
+  `tools` stream events. The projection must create/update the same generic
+  tool node from those message shapes.
+- Build async task nodes from `values.async_tasks` when present. These are
+  treated as generic task nodes with task/run/thread metadata, not as
+  business-specific agent categories.
 - Build artifact nodes from the generic `artifact.created` /
   `artifact.updated` envelope.
 - Attach evidence to the node that produced it.
-- Keep raw events in the technical tab for diagnostics.
-
-The UI is organized as:
-
-- execution link view: selectable trace nodes;
-- selected node detail: node metrics, downstream nodes, and node-owned
-  evidence;
-- evidence renderers: SQL, table, JSON/text, artifact, and error.
+- Keep raw events in the Diagnostics tab for debugging.
 
 SQL/table evidence is inferred from content shape rather than hard-coded tool
 names. For example, a tool input with `sql`, `query`, or `statement` containing
@@ -115,7 +122,7 @@ Recommended event type prefixes:
 - `todo.updated`
 - `error.reported`
 
-Unknown custom event types are shown as raw event summaries.
+Unknown custom event types are preserved in diagnostics/raw events.
 
 ## Status Mapping
 
@@ -129,13 +136,18 @@ The projection layer maps event words into generic statuses:
 
 ## UI Contract
 
-`ExecutionDetailModel` is the stable view model for the right-side process
-panel. UI components should read this model rather than parsing raw protocol
-events directly.
+`RunInspectorModel` is the stable view model for the right-side panel. UI
+components should read this model rather than parsing raw protocol events
+directly.
 
-`ExecutionTraceModel` is the preferred view model for the process panel. The
-older `ExecutionDetailModel` remains as a compatibility fallback while the trace
-model matures.
+`ExecutionTraceModel` remains the trace submodel under the active interaction
+run.
+
+The right panel may use official `@langchain/react` live selectors such as
+`stream.subagents` and scoped `useMessages(stream, subagent)` for the currently
+active run. Historical or selected earlier runs should use archived protocol
+events projected through `RunInspectorModel` so live subagent snapshots do not
+appear under the wrong interaction.
 
 New platform features should add projection rules and tests in
 `frontend/src/workspaceView.test.ts` before changing UI components.
@@ -144,7 +156,7 @@ New platform features should add projection rules and tests in
 
 - Add a structured output registry that validates agent-declared schemas without
   embedding business-specific schemas in the platform.
-- Add an artifact browser that renders Markdown, JSON, tables, code, and links
-  from the generic artifact model.
+- Extend the artifact browser with a backend artifact-content API for URI-based
+  artifacts.
 - Add live event hydration so `technicalEvents` can update while a stream is
   still running, not only after evidence refresh.
