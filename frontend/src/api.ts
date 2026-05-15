@@ -36,6 +36,17 @@ export interface ThreadEvidence {
   event_stats: EventStats;
 }
 
+export interface ArtifactListResponse {
+  thread_id: string;
+  run_id?: string | null;
+  artifacts: unknown[];
+}
+
+export interface ArtifactContentResponse {
+  artifact: unknown;
+  content?: unknown;
+}
+
 const API_ROOT = normalizeApiRoot(import.meta.env.VITE_API_ROOT ?? '/api');
 
 export function buildAgentTransportOptions(threadId: string): HttpAgentServerAdapterOptions {
@@ -59,6 +70,27 @@ export async function fetchThreadEvidence(threadId: string): Promise<ThreadEvide
     throw new Error(`Evidence request failed with ${response.status}`);
   }
   return response.json() as Promise<ThreadEvidence>;
+}
+
+export async function fetchArtifacts(threadId: string, runId?: string): Promise<ArtifactListResponse> {
+  const url = new URL(`${API_ROOT}/threads/${threadId}/artifacts`);
+  if (runId) url.searchParams.set('run_id', runId);
+  const response = await fetch(url.toString());
+  if (!response.ok) {
+    throw new Error(`Artifact list request failed with ${response.status}`);
+  }
+  return response.json() as Promise<ArtifactListResponse>;
+}
+
+export async function fetchArtifactContent(
+  threadId: string,
+  artifactId: string
+): Promise<ArtifactContentResponse> {
+  const response = await fetch(`${API_ROOT}/threads/${threadId}/artifacts/${artifactId}`);
+  if (!response.ok) {
+    throw new Error(`Artifact content request failed with ${response.status}`);
+  }
+  return response.json() as Promise<ArtifactContentResponse>;
 }
 
 export async function listAgents(): Promise<AgentInfo[]> {

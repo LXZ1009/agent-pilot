@@ -22,16 +22,23 @@ import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 're
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-import { createAgentTransport, fetchThreadEvidence } from './api';
+import {
+  createAgentTransport,
+  fetchArtifactContent,
+  fetchArtifacts,
+  fetchThreadEvidence
+} from './api';
 import {
   buildExecutionTraceModel,
   buildRunInspectorModel,
   buildStreamErrorMessage,
   buildSubagentProcessCard,
   deriveTaskTitle,
+  mergeArtifactDescriptors,
   mergeConversationRows,
   normalizeStreamMessages,
   resolveEvidenceRefreshInterval,
+  sortArtifactsForWorkspace,
   type ArtifactDescriptor,
   type ConversationRow,
   type DiagnosticItem,
@@ -226,6 +233,7 @@ function App() {
       </main>
 
       <RunInspectorPanel
+        threadId={threadId}
         open={panelOpen}
         setOpen={setPanelOpen}
         activeTab={inspectorTab}
@@ -389,6 +397,7 @@ function SystemNotice({ message }: { message: string }) {
 }
 
 function RunInspectorPanel({
+  threadId,
   open,
   setOpen,
   activeTab,
@@ -402,6 +411,7 @@ function RunInspectorPanel({
   subagents,
   technicalEvents
 }: {
+  threadId: string;
   open: boolean;
   setOpen: (open: boolean) => void;
   activeTab: InspectorTab;
@@ -466,7 +476,7 @@ function RunInspectorPanel({
           <ProgressTab items={progressItems} trace={activeTrace} stream={stream} subagents={liveSubagents} />
         )}
         {activeTab === 'trace' && <ExecutionTraceContent trace={activeTrace} />}
-        {activeTab === 'artifacts' && <ArtifactsTab artifacts={artifacts} />}
+        {activeTab === 'artifacts' && <ArtifactsTab threadId={threadId} runId={activeRunId} artifacts={artifacts} />}
         {activeTab === 'citations' && <CitationsTab citations={citations} trace={activeTrace} />}
         {activeTab === 'diagnostics' && <DiagnosticsTab diagnostics={diagnostics} rawEvents={rawEvents} />}
       </div>
@@ -667,47 +677,140 @@ function SubagentProcessItem({
     </article>
   );
 }
-function ArtifactsTab({ artifacts }: { artifacts: ArtifactDescriptor[] }) {
-  const [selectedId, setSelectedId] = useState(artifacts[0]?.id ?? '');
-  const selected = artifacts.find((artifact) => artifact.id === selectedId) ?? artifacts[0];
+type ArtifactContentState =
+  | { status: 'loading' }
+  | { status: 'loaded'; content: unknown }
+  | { status: 'error'; message: string };
+
+function ArtifactsTab({
+  threadId,
+  runId,
+  artifacts
+}: {
+  threadId: string;
+  runId?: string;
+  artifacts: ArtifactDescriptor[];
+}) {
+  const [remoteArtifacts, setRemoteArtifacts] = useState<ArtifactDescriptor[]>([]);
+  const [listError, setListError] = useState('');
+  const [selectedId, setSelectedId] = useState('');
+  const [contentById, setContentById] = useState<Record<string, ArtifactContentState>>({});
+  const mergedArtifacts = useMemo(
+    () => mergeArtifactDescriptors(artifacts, remoteArtifacts),
+    [artifacts, remoteArtifacts]
+  );
+  const selected = mergedArtifacts.find((artifact) => artifact.id === selectedId) ?? mergedArtifacts[0];
 
   useEffect(() => {
-    if (!selectedId && artifacts[0]) setSelectedId(artifacts[0].id);
-  }, [artifacts, selectedId]);
+    if (!threadId || !runId) {
+      setRemoteArtifacts([]);
+      setListError('');
+      return;
+    }
+    let cancelled = false;
+    void fetchArtifacts(threadId, runId)
+      .then((response) => {
+        if (cancelled) return;
+        setRemoteArtifacts(response.artifacts as ArtifactDescriptor[]);
+        setListError('');
+      })
+      .catch(() => {
+        if (!cancelled) setListError('Artifact list request failed; showing event-projected artifacts.');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [runId, threadId]);
 
-  if (artifacts.length === 0) {
+  useEffect(() => {
+    const preferred = mergedArtifacts.find((artifact) => artifact.role === 'deliverable') ?? mergedArtifacts[0];
+    if (!preferred) {
+      if (selectedId) setSelectedId('');
+      return;
+    }
+    if (!selectedId || !mergedArtifacts.some((artifact) => artifact.id === selectedId)) {
+      setSelectedId(preferred.id);
+    }
+  }, [mergedArtifacts, selectedId]);
+
+  useEffect(() => {
+    if (!selected || selected.content !== undefined || selected.source !== 'workspace' || !threadId) return;
+    if (contentById[selected.id]) return;
+    let cancelled = false;
+    setContentById((current) => ({ ...current, [selected.id]: { status: 'loading' } }));
+    void fetchArtifactContent(threadId, selected.id)
+      .then((response) => {
+        if (cancelled) return;
+        setContentById((current) => ({
+          ...current,
+          [selected.id]: { status: 'loaded', content: response.content }
+        }));
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setContentById((current) => ({
+          ...current,
+          [selected.id]: { status: 'error', message: resolveErrorMessage(error) }
+        }));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [contentById, selected, threadId]);
+
+  if (mergedArtifacts.length === 0) {
     return <EmptyPanel title="暂无产物" description="本轮任务生成文件或结构化结果后会显示在这里。" />;
   }
 
   return (
     <section className="artifact-viewer">
+      {listError && <div className="artifact-warning">{listError}</div>}
       <div className="artifact-list">
-        {artifacts.map((artifact) => (
+        {sortArtifactsForWorkspace(mergedArtifacts).map((artifact) => (
           <button
             key={artifact.id}
             className={artifact.id === selected?.id ? 'active' : ''}
             type="button"
             onClick={() => setSelectedId(artifact.id)}
+            aria-current={artifact.id === selected?.id}
           >
             <strong>{artifact.title}</strong>
-            <span>{artifact.mimeType || artifact.kind}</span>
+            <span>{artifactLabel(artifact)}</span>
           </button>
         ))}
       </div>
-      {selected && <ArtifactPreview artifact={selected} />}
+      {selected && (
+        <>
+          <ArtifactPreview artifact={selected} state={contentById[selected.id]} />
+          <ArtifactMetadata artifact={selected} />
+        </>
+      )}
     </section>
   );
 }
 
-function ArtifactPreview({ artifact }: { artifact: ArtifactDescriptor }) {
-  if (artifact.content !== undefined && artifact.kind === 'table') {
-    return <EvidenceTable content={artifact.content} />;
+function ArtifactPreview({ artifact, state }: { artifact: ArtifactDescriptor; state?: ArtifactContentState }) {
+  const content =
+    artifact.content !== undefined
+      ? artifact.content
+      : state?.status === 'loaded'
+        ? state.content
+        : undefined;
+
+  if (state?.status === 'loading') {
+    return <div className="artifact-preview-state">浜х墿鍐呭鍔犺浇涓?..</div>;
   }
-  if (typeof artifact.content === 'string' && artifact.kind === 'document') {
-    return <ReactMarkdown remarkPlugins={[remarkGfm]}>{artifact.content}</ReactMarkdown>;
+  if (state?.status === 'error') {
+    return <div className="artifact-preview-state error">{state.message}</div>;
   }
-  if (artifact.content !== undefined) {
-    return <pre className="evidence-code json">{JSON.stringify(artifact.content, null, 2)}</pre>;
+  if (content !== undefined && artifact.kind === 'table') {
+    return <EvidenceTable content={content} />;
+  }
+  if (typeof content === 'string' && artifact.kind === 'document') {
+    return <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>;
+  }
+  if (content !== undefined) {
+    return <pre className="evidence-code json">{JSON.stringify(content, null, 2)}</pre>;
   }
   return (
     <div className="artifact-preview-empty">
@@ -715,6 +818,41 @@ function ArtifactPreview({ artifact }: { artifact: ArtifactDescriptor }) {
       <span>{artifact.uri || artifact.summary || '产物内容需要通过后端 artifact API 获取。'}</span>
     </div>
   );
+}
+
+function ArtifactMetadata({ artifact }: { artifact: ArtifactDescriptor }) {
+  return (
+    <dl className="artifact-metadata">
+      <div>
+        <dt>鏉ユ簮</dt>
+        <dd>{artifact.source}</dd>
+      </div>
+      <div>
+        <dt>瑙掕壊</dt>
+        <dd>{artifact.role}</dd>
+      </div>
+      <div>
+        <dt>绫诲瀷</dt>
+        <dd>{artifact.mimeType || artifact.kind}</dd>
+      </div>
+      {artifact.uri && (
+        <div>
+          <dt>URI</dt>
+          <dd>{artifact.uri}</dd>
+        </div>
+      )}
+      {artifact.producerNodeId && (
+        <div>
+          <dt>杈撳嚭鑺傜偣</dt>
+          <dd>{artifact.producerNodeId}</dd>
+        </div>
+      )}
+    </dl>
+  );
+}
+
+function artifactLabel(artifact: ArtifactDescriptor): string {
+  return `${artifact.role} / ${artifact.source} / ${artifact.mimeType || artifact.kind}`;
 }
 
 function CitationsTab({ citations, trace }: { citations: ResultCitation[]; trace: ExecutionTraceModel }) {

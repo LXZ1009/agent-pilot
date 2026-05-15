@@ -11,7 +11,9 @@ import {
   deriveTaskTitle,
   mergeConversationRows,
   normalizeStreamMessages,
-  resolveEvidenceRefreshInterval
+  resolveEvidenceRefreshInterval,
+  mergeArtifactDescriptors,
+  sortArtifactsForWorkspace
 } from './workspaceView';
 import type { EvidenceCard } from './api';
 
@@ -497,6 +499,74 @@ describe('workspace view model', () => {
     ]);
   });
 
+  it('expands generic manifest children without relying on business file names', () => {
+    const model = buildRunInspectorModel([
+      lifecycleEvent('thread_1:1', 1, 'running', '2026-05-15T01:00:00.000Z'),
+      customArtifactEvent('thread_1:2', {
+        id: 'manifest_1',
+        title: 'Bundle manifest',
+        role: 'manifest',
+        source: 'inline',
+        mime_type: 'application/json',
+        content: {
+          artifacts: [
+            {
+              id: 'child_1',
+              title: 'Preview payload',
+              role: 'preview',
+              source: 'workspace',
+              uri: '/artifacts/run_1/preview.html',
+              mime_type: 'text/html'
+            }
+          ]
+        }
+      }),
+      lifecycleEvent('thread_1:3', 3, 'completed', '2026-05-15T01:00:03.000Z')
+    ]);
+    const runId = model.runs[0].id;
+
+    expect(model.artifactsByRunId[runId]).toMatchObject([
+      {
+        id: 'manifest_1',
+        role: 'manifest'
+      },
+      {
+        id: 'child_1',
+        title: 'Preview payload',
+        role: 'preview',
+        source: 'workspace',
+        uri: '/artifacts/run_1/preview.html',
+        mimeType: 'text/html',
+        kind: 'document'
+      }
+    ]);
+  });
+
+  it('orders deliverables ahead of previews, manifests, and workspace files', () => {
+    const artifacts = sortArtifactsForWorkspace([
+      artifactDescriptor('workspace_1', 'workspace_file'),
+      artifactDescriptor('preview_1', 'preview'),
+      artifactDescriptor('deliverable_1', 'deliverable'),
+      artifactDescriptor('manifest_1', 'manifest')
+    ]);
+
+    expect(artifacts.map((artifact) => artifact.id)).toEqual([
+      'deliverable_1',
+      'preview_1',
+      'manifest_1',
+      'workspace_1'
+    ]);
+  });
+
+  it('lets backend artifact descriptors replace event projections with the same id', () => {
+    const merged = mergeArtifactDescriptors(
+      [artifactDescriptor('artifact_1', 'deliverable', { title: 'Event title' })],
+      [artifactDescriptor('artifact_1', 'deliverable', { title: 'Backend title' })]
+    );
+
+    expect(merged).toMatchObject([{ id: 'artifact_1', title: 'Backend title' }]);
+  });
+
   it('projects tool calls and async tasks from values snapshots', () => {
     const model = buildRunInspectorModel([
       lifecycleEvent('thread_1:1', 1, 'running', '2026-05-14T09:41:01.000Z'),
@@ -612,6 +682,22 @@ function customArtifactEvent(id: string, artifact: Record<string, unknown>) {
         artifact
       }
     }
+  };
+}
+
+function artifactDescriptor(
+  id: string,
+  role: 'deliverable' | 'preview' | 'manifest' | 'workspace_file',
+  overrides: Record<string, unknown> = {}
+) {
+  return {
+    id,
+    runId: 'run_1',
+    title: id,
+    kind: 'document' as const,
+    role,
+    source: 'inline' as const,
+    ...overrides
   };
 }
 

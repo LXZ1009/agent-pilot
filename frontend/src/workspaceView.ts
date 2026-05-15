@@ -222,6 +222,31 @@ export interface RunInspectorModel {
   rawEventsByRunId: Record<string, unknown[]>;
 }
 
+const artifactRoleOrder: Record<ArtifactRole, number> = {
+  deliverable: 0,
+  preview: 1,
+  manifest: 2,
+  workspace_file: 3
+};
+
+export function sortArtifactsForWorkspace(artifacts: ArtifactDescriptor[]): ArtifactDescriptor[] {
+  return [...artifacts].sort((left, right) => {
+    const roleDelta = artifactRoleOrder[left.role] - artifactRoleOrder[right.role];
+    if (roleDelta !== 0) return roleDelta;
+    return left.title.localeCompare(right.title);
+  });
+}
+
+export function mergeArtifactDescriptors(
+  eventArtifacts: ArtifactDescriptor[],
+  backendArtifacts: ArtifactDescriptor[]
+): ArtifactDescriptor[] {
+  const byId = new Map<string, ArtifactDescriptor>();
+  eventArtifacts.forEach((artifact) => byId.set(artifact.id, artifact));
+  backendArtifacts.forEach((artifact) => byId.set(artifact.id, artifact));
+  return sortArtifactsForWorkspace([...byId.values()]);
+}
+
 export function deriveTaskTitle(messages: ConversationRow[]): string {
   const latestUserMessage = [...messages].reverse().find((message) => message.role === 'user');
   const content = latestUserMessage?.content.trim();
@@ -599,9 +624,13 @@ function projectRunArtifacts(runId: string, events: unknown[]): ArtifactDescript
     if (method === 'custom') {
       const type = readString(data.type) || readString(data.event);
       if (type === 'artifact.created' || type === 'artifact.updated') {
-        artifacts.push(
-          toArtifactDescriptor(runId, `${runId}:artifact:${eventIndex}`, asRecord(data.artifact), data)
+        const descriptor = toArtifactDescriptor(
+          runId,
+          `${runId}:artifact:${eventIndex}`,
+          asRecord(data.artifact),
+          data
         );
+        artifacts.push(descriptor, ...expandManifestArtifacts(runId, descriptor));
       }
     }
   });
@@ -650,6 +679,20 @@ function normalizeArtifactRole(value: unknown, fallback: ArtifactRole): Artifact
 function normalizeArtifactSource(value: unknown, content: unknown): ArtifactSource {
   if (value === 'inline' || value === 'workspace') return value;
   return content === undefined ? 'workspace' : 'inline';
+}
+
+function expandManifestArtifacts(runId: string, artifact: ArtifactDescriptor): ArtifactDescriptor[] {
+  if (artifact.role !== 'manifest') return [];
+  const content = asRecord(artifact.content);
+  const children = Array.isArray(content.artifacts) ? content.artifacts : [];
+  return children.map((child, index) =>
+    toArtifactDescriptor(
+      runId,
+      `${artifact.id}:child:${index}`,
+      asRecord(child),
+      { parentArtifactId: artifact.id }
+    )
+  );
 }
 
 function inferArtifactKind(mimeType: string, uri: string, content: unknown): ArtifactDescriptor['kind'] {
