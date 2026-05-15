@@ -216,6 +216,7 @@ vite.config.d.ts
 # Local run logs
 tmp/
 .langgraph_api/
+.worktrees/
 
 # Large generated/vendor assets from project-level Kami skill install.
 .agents/skills/kami/dist/
