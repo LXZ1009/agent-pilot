@@ -87,14 +87,36 @@ class ArtifactRegistry:
             envelope = _as_dict(event)
             params = _as_dict(envelope.get("params"))
             data = _as_dict(params.get("data"))
-            if envelope.get("method") != "custom":
+            method = envelope.get("method")
+            if method == "custom" and data.get("type") in {"artifact.created", "artifact.updated"}:
+                records.extend(self._records_from_artifact(data, _as_dict(data.get("artifact"))))
                 continue
-            if data.get("type") not in {"artifact.created", "artifact.updated"}:
-                continue
-
-            artifact = _as_dict(data.get("artifact"))
-            records.append(self._to_record(data, artifact))
+            if method == "tools" and data.get("event") == "tool-finished":
+                for artifact in _declared_artifacts_from_output(data.get("output")):
+                    records.extend(self._records_from_artifact(data, artifact))
         return records
+
+    def _records_from_artifact(
+        self,
+        data: dict[str, Any],
+        artifact: dict[str, Any],
+    ) -> list[ArtifactRecord]:
+        record = self._to_record(data, artifact)
+        return [record, *self._expand_manifest_records(record)]
+
+    def _expand_manifest_records(self, record: ArtifactRecord) -> list[ArtifactRecord]:
+        if record.descriptor["role"] != "manifest":
+            return []
+        content = _as_dict(record.content)
+        children = content.get("artifacts")
+        if not isinstance(children, list):
+            return []
+        data = {"run_id": record.descriptor["runId"]}
+        return [
+            self._to_record(data, child)
+            for child in children
+            if isinstance(child, dict)
+        ]
 
     def _to_record(self, data: dict[str, Any], artifact: dict[str, Any]) -> ArtifactRecord:
         content = artifact.get("content")
@@ -186,6 +208,17 @@ def _serialize_content(content: Any) -> str:
     if isinstance(content, str):
         return content
     return json.dumps(content, ensure_ascii=False)
+
+
+def _declared_artifacts_from_output(output: Any) -> list[dict[str, Any]]:
+    payload = _as_dict(output)
+    artifacts = payload.get("artifacts")
+    if isinstance(artifacts, list):
+        return [item for item in artifacts if isinstance(item, dict)]
+    artifact = payload.get("artifact")
+    if isinstance(artifact, dict):
+        return [artifact]
+    return []
 
 
 def _is_relative_to(path: Path, root: Path) -> bool:

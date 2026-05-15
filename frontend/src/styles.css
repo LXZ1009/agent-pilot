@@ -1151,6 +1151,28 @@ h1, h2, h3, p { margin: 0; }
   border-bottom: 1px solid var(--line);
   padding-bottom: 18px;
 }
+.run-execution-summary {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 18px;
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 8px;
+  background: #fff;
+}
+.run-execution-summary span {
+  color: var(--primary);
+  font-size: .72rem;
+  font-weight: 800;
+}
+.run-execution-summary strong {
+  color: var(--ink);
+  font-size: .92rem;
+}
+.run-execution-summary small {
+  color: var(--muted);
+  font-size: .78rem;
+}
 .subagent-process-header {
   display: grid;
   gap: 10px;

@@ -103,7 +103,7 @@ class LangGraphAgentGateway:
                         for projected in self._message_projector.project(thread_id, data, namespace):
                             await self._publish(thread_id, "messages", projected, namespace)
                         continue
-                    await self._publish(thread_id, method, data, namespace)
+                    await self._publish(thread_id, method, _with_run_id(data, run_id), namespace)
             await self._publish(
                 thread_id,
                 "lifecycle",
@@ -210,6 +210,12 @@ def _matches_subscription(event: dict[str, Any], params: dict[str, Any]) -> bool
     event_namespace = [str(item) for item in event.get("params", {}).get("namespace") or []]
     depth = params.get("depth")
     return any(_namespace_matches(prefix, event_namespace, depth) for prefix in namespaces)
+
+
+def _with_run_id(data: Any, run_id: str) -> Any:
+    if not isinstance(data, dict) or "run_id" in data:
+        return data
+    return {**data, "run_id": run_id}
 
 
 def _matches_channel(event: dict[str, Any], channels: set[str]) -> bool:

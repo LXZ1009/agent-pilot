@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>风险预警清单 — 华东大区</title>
+  <title>风险提示摘要 — 华东市场</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; padding: 20px; background: #f5f7fa; color: #333; }
     .card { max-width: 960px; margin: 0 auto; background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); overflow: hidden; }
@@ -14,7 +14,6 @@
     .risk-item { border-left: 4px solid #ddd; padding: 16px 20px; margin-bottom: 16px; background: #fafafa; border-radius: 0 8px 8px 0; }
     .risk-high { border-left-color: #c62828; }
     .risk-medium { border-left-color: #e65100; }
-    .risk-low { border-left-color: #2e7d32; }
     .risk-title { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
     .risk-desc { font-size: 14px; color: #555; margin-bottom: 12px; line-height: 1.6; }
     .risk-tags { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
@@ -24,64 +23,65 @@
     .badge-label { background: #e8eaf6; color: #283593; }
     .actions { font-size: 13px; color: #666; }
     .actions strong { color: #333; }
+    .quantified { background: #fff3e0; padding: 8px 12px; border-radius: 6px; margin-bottom: 8px; font-size: 13px; }
+    .quantified strong { color: #e65100; }
     .footer { background: #f8f9fa; padding: 12px 32px; font-size: 12px; color: #999; text-align: center; }
   </style>
 </head>
 <body>
   <div class="card">
     <div class="header">
-      <h1>⚠️ 风险预警清单</h1>
-      <p>每日沥青市场定价会议 — 华东大区 | 2026-05-12</p>
+      <h1>⚠️ 风险提示摘要</h1>
+      <p>每日沥青定价会 — 华东市场 | 产品：道路石油沥青 70# A级 | 2026-05-12</p>
     </div>
     <div class="body">
       <!-- RISK-001 -->
       <div class="risk-item risk-high">
-        <div class="risk-title">RISK-001：竞品低价持续冲击</div>
+        <div class="risk-title">RISK-001：大客户分流风险</div>
         <div class="risk-tags">
           <span class="badge badge-high">高</span>
-          <span class="badge badge-label">影响范围：华东区整体价格体系</span>
+          <span class="badge badge-label">影响范围：浙江建投、江苏交工</span>
         </div>
-        <div class="risk-desc">
-          竞品低价区间3820–3850元/吨，低于我方主流成交价3860–3880元/吨，可能引发区域价格体系下移。
+        <div class="quantified">
+          <strong>量化影响：</strong>若浙江建投部分订单分流，月度销量可能减少 800–1,000 吨；江苏交工流失将直接影响区域定价基准。潜在收入损失 309–388 万元/月。
         </div>
+        <div class="risk-desc">浙江建投、江苏交工两大重点客户面临竞品价格冲击，存在订单分流风险。</div>
         <div class="actions">
-          <strong>应对建议：</strong>密切监控竞品报价变化；必要时启动价格防御机制；对价格敏感客户加强绑定条件（采购量/账期/预付款）。
+          <strong>应对建议：</strong>尽快确认浙江建投和江苏交工的最终底线及绑定条件；通过采购量承诺、账期缩短、预付款等条件换取价格让步；评估客户流失风险并制定替代方案。
         </div>
       </div>
-
       <!-- RISK-002 -->
       <div class="risk-item risk-medium">
-        <div class="risk-title">RISK-002：库存消化偏慢</div>
+        <div class="risk-title">RISK-002：利润压缩风险</div>
         <div class="risk-tags">
           <span class="badge badge-medium">中</span>
-          <span class="badge badge-label">影响范围：华东区库存管理</span>
+          <span class="badge badge-label">影响范围：整体盈利能力</span>
         </div>
-        <div class="risk-desc">
-          华东区库存1.8–2.1万吨，中等偏高，略高于安全库存，去库速度偏慢。若持续累积可能导致被动降价。
+        <div class="quantified">
+          <strong>量化影响：</strong>当前毛利率已从 3.2% 降至 2.4%。3,830 元/吨对应毛利率仅 2.1%，毛利 80 元/吨；若进一步降价至 3,800 元/吨，毛利仅 50 元/吨(1.3%)。
         </div>
+        <div class="risk-desc">低价订单可能导致毛利率降至 2% 以下，侵蚀整体盈利水平。</div>
         <div class="actions">
-          <strong>应对建议：</strong>关注去库速度变化趋势；必要时调整促销策略加速去库；评估是否需要调整生产或调拨计划。
+          <strong>应对建议：</strong>严格执行价格底线规则；通过交换条件（采购量、账期、预付款）换取价格让步；监控毛利率趋势，设定止损线。
         </div>
       </div>
-
       <!-- RISK-003 -->
       <div class="risk-item risk-medium">
-        <div class="risk-title">RISK-003：价格敏感客户转化压力大</div>
+        <div class="risk-title">RISK-003：区域价格体系风险</div>
         <div class="risk-tags">
           <span class="badge badge-medium">中</span>
-          <span class="badge badge-label">影响范围：重点客户（江苏交工等）</span>
+          <span class="badge badge-label">影响范围：华东区整体价格体系</span>
         </div>
-        <div class="risk-desc">
-          江苏交工等价格敏感客户面临较大竞争压力，需在销量与利润之间取得平衡。低于3830元/吨需绑定采购量/账期/预付款。
+        <div class="quantified">
+          <strong>量化影响：</strong>若江苏交工以 3,830 元/吨成交，浙江建投、杭州路桥等其他客户可能要求同价或更低价格，整体均价可能下移 20–40 元/吨。
         </div>
+        <div class="risk-desc">单个客户以超低价成交可能引发其他客户跟价要求，导致区域价格体系全面下移。</div>
         <div class="actions">
-          <strong>应对建议：</strong>严格执行价格底线规则；通过采购量、账期、预付款等条件换取价格让步；评估客户流失风险并制定替代方案。
+          <strong>应对建议：</strong>控制低价客户范围，避免公开披露；签订保密条款，防止价格信息扩散；建立价格审批机制，统一管控差异化定价。
         </div>
       </div>
     </div>
-    <div class="footer">
-      资产包 ID：east_china_asphalt_pricing_20260512 | 生成时间：2026-05-12 | MaterialAssetAgent
-    </div>
+    <div class="footer">资产包 ID：east_china_asphalt_pricing_20260512 | 生成时间：2026-05-12 | MaterialAssetAgent</div>
   </div>
 </body>
 </html>

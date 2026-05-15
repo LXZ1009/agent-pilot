@@ -50,6 +50,17 @@ export interface SubagentProcessCard {
   elapsedLabel: string | null;
 }
 
+export interface LatestRunOutput {
+  title: string;
+  content: string;
+}
+
+export interface RunExecutionSummary {
+  label: string;
+  title: string;
+  description: string;
+}
+
 export type ExecutionItemKind = 'plan' | 'subagent' | 'tool' | 'task' | 'artifact' | 'error' | 'message' | 'raw';
 export type ExecutionItemStatus = 'pending' | 'running' | 'complete' | 'error' | 'unknown';
 
@@ -335,6 +346,160 @@ export function buildSubagentProcessCard(
           : streamedPreview || '等待子 Agent 输出',
     elapsedLabel: formatElapsedTime(subagent.startedAt, subagent.completedAt)
   };
+}
+
+export function buildTraceSubagentProcessCards(
+  trace: ExecutionTraceModel,
+  runStatus?: InteractionRunStatus
+): SubagentProcessCard[] {
+  return trace.nodes
+    .filter((node) => node.kind === 'agent')
+    .map((node) => {
+      const evidence = collectTraceEvidence(trace, node.id);
+      const latestUsefulEvidence = [...evidence]
+        .reverse()
+        .find((item) => item.kind === 'tool_output' || item.kind === 'message' || item.kind === 'artifact');
+      const status: SubagentProcessStatus =
+        node.status === 'error'
+          ? 'error'
+          : node.status === 'complete' || runStatus === 'complete'
+            ? 'complete'
+            : 'running';
+      const preview =
+        latestUsefulEvidence?.kind === 'tool_output'
+          ? resolveOutputContent(latestUsefulEvidence.content) || latestUsefulEvidence.summary
+          : latestUsefulEvidence?.summary || '子 Agent 已完成';
+      return {
+        id: node.id,
+        title: node.title,
+        description: '子 Agent 执行任务',
+        status,
+        statusLabel: resolveSubagentStatusLabel(status),
+        preview,
+        elapsedLabel: formatElapsedTime(
+          node.startedAt ? new Date(node.startedAt) : null,
+          resolveTraceNodeCompletedAt(trace, node.id)
+        )
+      };
+    });
+}
+
+export function buildLatestRunOutput(trace: ExecutionTraceModel): LatestRunOutput | undefined {
+  const candidates = trace.nodes
+    .filter((node) => node.kind === 'supervisor' || node.kind === 'system')
+    .flatMap((node) =>
+      (trace.evidenceByNodeId[node.id] ?? [])
+        .filter((evidence) => evidence.kind === 'message' && typeof evidence.content === 'string')
+        .map((evidence) => ({
+          title: node.title,
+          content: String(evidence.content),
+          timestamp: node.completedAt || node.startedAt || ''
+        }))
+    );
+  const latest = candidates.at(-1);
+  if (!latest) return undefined;
+  return { title: latest.title, content: latest.content };
+}
+
+export function mergeConversationRowsWithLatestOutput(
+  rows: ConversationRow[],
+  latestOutput?: LatestRunOutput
+): ConversationRow[] {
+  if (!latestOutput) return rows;
+  const hasSameAssistantReply = rows.some(
+    (row) => row.role === 'assistant' && row.content.trim() === latestOutput.content.trim()
+  );
+  if (hasSameAssistantReply) return rows;
+  return [
+    ...rows,
+    {
+      id: 'trace_latest_output',
+      role: 'assistant',
+      actor: latestOutput.title,
+      content: latestOutput.content
+    }
+  ];
+}
+
+export function buildRunExecutionSummary(
+  run: InteractionRun | undefined,
+  context: {
+    liveSubagentCount: number;
+    archivedSubagentCount: number;
+    progressCount: number;
+  }
+): RunExecutionSummary | undefined {
+  if (!run) return undefined;
+
+  const collaborativeCount = context.liveSubagentCount || context.archivedSubagentCount;
+  if (run.status === 'waiting') {
+    return {
+      label: '等待用户',
+      title: '等待用户继续',
+      description: '当前任务正在等待新的输入。'
+    };
+  }
+  if (run.status === 'error') {
+    return {
+      label: '异常',
+      title: '执行异常',
+      description: '当前任务需要检查诊断信息。'
+    };
+  }
+  if (run.status === 'complete') {
+    return collaborativeCount > 0
+      ? {
+          label: '已完成',
+          title: '本轮协同已完成',
+          description: `${collaborativeCount} 个协同单元已完成。`
+        }
+      : {
+          label: '已完成',
+          title: '本轮任务已完成',
+          description: '当前任务已经结束。'
+        };
+  }
+  if (collaborativeCount > 0) {
+    return {
+      label: '运行中',
+      title: '协同执行中',
+      description: `${collaborativeCount} 个协同单元正在参与执行。`
+    };
+  }
+  if (context.progressCount > 0) {
+    return {
+      label: '运行中',
+      title: '执行推进中',
+      description: '当前任务正在推进执行步骤。'
+    };
+  }
+  return {
+    label: '运行中',
+    title: '主流程处理中',
+    description: '当前任务仍在执行。'
+  };
+}
+
+function collectTraceEvidence(trace: ExecutionTraceModel, nodeId: string): ExecutionEvidence[] {
+  const node = trace.nodesById[nodeId];
+  if (!node) return [];
+  return [
+    ...(trace.evidenceByNodeId[node.id] ?? []),
+    ...node.children.flatMap((childId) => collectTraceEvidence(trace, childId))
+  ];
+}
+
+function resolveTraceNodeCompletedAt(trace: ExecutionTraceModel, nodeId: string): Date | null {
+  const node = trace.nodesById[nodeId];
+  if (!node) return null;
+  const completedAt = [
+    node.completedAt,
+    ...node.children.map((childId) => resolveTraceNodeCompletedAt(trace, childId)?.toISOString())
+  ]
+    .filter((value): value is string => Boolean(value))
+    .sort()
+    .at(-1);
+  return completedAt ? new Date(completedAt) : null;
 }
 
 export function buildExecutionDetailModel(events: unknown[]): ExecutionDetailModel {
@@ -633,6 +798,18 @@ function projectRunArtifacts(runId: string, events: unknown[]): ArtifactDescript
         artifacts.push(descriptor, ...expandManifestArtifacts(runId, descriptor));
       }
     }
+
+    if (method === 'tools' && readString(data.event) === 'tool-finished') {
+      declaredArtifactsFromToolOutput(data.output).forEach((artifact, artifactIndex) => {
+        const descriptor = toArtifactDescriptor(
+          runId,
+          `${runId}:tool-artifact:${eventIndex}:${artifactIndex}`,
+          artifact,
+          data
+        );
+        artifacts.push(descriptor, ...expandManifestArtifacts(runId, descriptor));
+      });
+    }
   });
   return artifacts;
 }
@@ -693,6 +870,15 @@ function expandManifestArtifacts(runId: string, artifact: ArtifactDescriptor): A
       { parentArtifactId: artifact.id }
     )
   );
+}
+
+function declaredArtifactsFromToolOutput(output: unknown): Record<string, unknown>[] {
+  const payload = asRecord(output);
+  if (Array.isArray(payload.artifacts)) {
+    return payload.artifacts.map((item) => asRecord(item)).filter((item) => Object.keys(item).length > 0);
+  }
+  const artifact = asRecord(payload.artifact);
+  return Object.keys(artifact).length > 0 ? [artifact] : [];
 }
 
 function inferArtifactKind(mimeType: string, uri: string, content: unknown): ArtifactDescriptor['kind'] {

@@ -1,0 +1,111 @@
+{
+  "asset_package_id": "material_package_undetermined",
+  "missing_items": [
+    {
+      "missing_id": "missing_001",
+      "field": "business_scenario",
+      "description": "业务场景未指定（如：重点客户续约定价/区域调价/新品报价等）",
+      "impact": "无法确定资产包类型和核心关注点",
+      "suggested_question": "本次定价会议的业务场景是什么？属于哪类定价任务？",
+      "target_agent": "PricingMeetingAgent",
+      "target_role": "主 Agent / 用户",
+      "priority": "critical",
+      "status": "pending"
+    },
+    {
+      "missing_id": "missing_002",
+      "field": "target_object",
+      "description": "目标对象未指定（客户名称、项目名称或区域）",
+      "impact": "无法生成针对性的客户画像和风险预警",
+      "suggested_question": "本次定价会议针对的具体客户、项目或区域是什么？",
+      "target_agent": "PricingMeetingAgent",
+      "target_role": "主 Agent / 用户",
+      "priority": "critical",
+      "status": "pending"
+    },
+    {
+      "missing_id": "missing_003",
+      "field": "meeting_date",
+      "description": "会议日期未指定",
+      "impact": "无法生成时间相关的预览素材和通知调度",
+      "suggested_question": "定价会议的预定日期和时间是什么？",
+      "target_agent": "PricingMeetingAgent",
+      "target_role": "主 Agent / 用户",
+      "priority": "high",
+      "status": "pending"
+    },
+    {
+      "missing_id": "missing_004",
+      "field": "interview_cards",
+      "description": "会前访谈卡片数据未提供",
+      "impact": "无法生成访谈卡片集合和基于访谈的分析结论",
+      "suggested_question": "是否有已完成的会前访谈卡片需要纳入资产包？",
+      "target_agent": "PricingMeetingAgent",
+      "target_role": "主 Agent",
+      "priority": "high",
+      "status": "pending"
+    },
+    {
+      "missing_id": "missing_005",
+      "field": "customer_profile",
+      "description": "客户基本信息缺失（采购量、历史价格、合作年限、战略等级等）",
+      "impact": "无法完成客户价值评估和优先级排序",
+      "suggested_question": "该客户的采购规模、历史合作情况和战略等级是什么？",
+      "target_agent": "PricingMeetingAgent",
+      "target_role": "客户经理 / 数据查询 Agent",
+      "priority": "high",
+      "status": "pending"
+    },
+    {
+      "missing_id": "missing_006",
+      "field": "price_execution_data",
+      "description": "价格执行数据缺失（官方价、实际成交价、折扣率、账期条件等）",
+      "impact": "无法生成价格执行摘要和报价策略建议",
+      "suggested_question": "该客户近期的实际成交价格、折扣幅度和账期条件是什么？",
+      "target_agent": "PricingMeetingAgent",
+      "target_role": "数据查询 Agent",
+      "priority": "high",
+      "status": "pending"
+    },
+    {
+      "missing_id": "missing_007",
+      "field": "competitor_info",
+      "description": "竞品动态信息缺失（竞品报价、竞品策略、市场份额变化等）",
+      "impact": "无法完成竞争分析和风险预警",
+      "suggested_question": "主要竞品的当前报价和策略是什么？是否存在价格战风险？",
+      "target_agent": "PricingMeetingAgent",
+      "target_role": "客户经理 / 市场情报",
+      "priority": "high",
+      "status": "pending"
+    },
+    {
+      "missing_id": "missing_008",
+      "field": "risk_factors",
+      "description": "已知风险因素缺失（客户流失风险、合同到期日、替代供应商情况等）",
+      "impact": "无法生成风险预警清单和应对建议",
+      "suggested_question": "该客户是否存在流失风险？合同何时到期？是否有替代供应商在接触？",
+      "target_agent": "PricingMeetingAgent",
+      "target_role": "客户经理",
+      "priority": "medium",
+      "status": "pending"
+    },
+    {
+      "missing_id": "missing_009",
+      "field": "pricing_objectives",
+      "description": "定价目标和底线未明确（目标价格区间、可接受最低价格、谈判策略等）",
+      "impact": "无法生成有指导意义的定价策略建议",
+      "suggested_question": "本次定价会议的目标价格区间和底线是什么？谈判策略倾向是什么？",
+      "target_agent": "PricingMeetingAgent",
+      "target_role": "用户 / 定价决策人",
+      "priority": "medium",
+      "status": "pending"
+    }
+  ],
+  "summary": {
+    "total_missing": 9,
+    "critical_count": 2,
+    "high_count": 5,
+    "medium_count": 2,
+    "low_count": 0
+  }
+}

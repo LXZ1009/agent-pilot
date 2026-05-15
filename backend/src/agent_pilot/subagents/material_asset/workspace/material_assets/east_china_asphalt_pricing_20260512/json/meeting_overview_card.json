@@ -1,113 +1,46 @@
 {
   "card_type": "meeting_overview_card",
   "asset_package_id": "east_china_asphalt_pricing_20260512",
-  "title": "每日沥青市场定价会议 — 华东大区概览",
+  "title": "每日沥青定价会 — 华东市场概览",
   "generated_at": "2026-05-12T00:00:00Z",
   "meeting_info": {
-    "meeting_name": "每日沥青市场定价会议",
-    "region": "华东大区",
+    "meeting_name": "每日沥青定价会",
+    "product": "道路石油沥青 70# A级",
+    "region": "华东市场",
     "region_leader": "张三",
     "date": "2026-05-12"
   },
   "data_dashboard": {
-    "demand": {
-      "judgment": "中性偏强",
-      "estimated_daily_volume_tons": {
-        "min": 3500,
-        "max": 4200
-      },
-      "drivers": [
-        "江浙市政道路项目集中施工",
-        "终端采购量环比增加 5%-10%"
-      ],
-      "stockpiling_attitude": "谨慎，无大规模囤货"
-    },
     "pricing": {
-      "mainstream_transaction_price_yuan_per_ton": {
-        "min": 3860,
-        "max": 3880
-      },
-      "previous_price_yuan_per_ton": {
-        "min": 3880,
-        "max": 3900
-      },
+      "official_price_yuan_per_ton": {"min": 3900, "max": 3950},
+      "actual_transaction_price_yuan_per_ton": {"min": 3860, "max": 3880},
+      "previous_price_yuan_per_ton": {"min": 3880, "max": 3900},
       "price_change_yuan_per_ton": -20,
-      "competitor_low_price_yuan_per_ton": {
-        "min": 3820,
-        "max": 3850
-      },
-      "strategy": "稳主价、分客户跟价"
+      "strategy": "成本加成 + 竞争导向，重点客户差异化定价"
     },
-    "inventory": {
-      "current_stock_tons": {
-        "min": 18000,
-        "max": 21000
-      },
-      "level_assessment": "中等偏高，略高于安全库存",
-      "depletion_speed": "偏慢",
-      "trend": "未明显累积但消化偏慢"
+    "cost": {
+      "comprehensive_cost_line_yuan_per_ton": {"min": 3720, "max": 3760},
+      "conservative_estimate_yuan_per_ton": 3750,
+      "gross_margin_range_percent": {"min": 2.1, "max": 3.5}
     },
-    "cost_and_supply": {
-      "refinery_ex_factory_price_change_yuan_per_ton": {
-        "min": -40,
-        "max": -20
-      },
-      "crude_oil_cost_lag_impact_yuan_per_ton": {
-        "min": 10,
-        "max": 20
-      },
-      "main_pressure_cause": "供需关系和竞品冲击，非原油成本"
+    "competition": {
+      "regional_brand_price_yuan_per_ton": {"min": 3860, "max": 3890},
+      "local_trader_price_yuan_per_ton": {"min": 3820, "max": 3850},
+      "small_trader_price_yuan_per_ton": {"min": 3800, "max": 3830}
     },
-    "forecast": {
-      "tomorrow_trend": "继续承压、弱稳运行",
-      "mainstream_price_range_yuan_per_ton": {
-        "min": 3860,
-        "max": 3880
-      },
-      "low_price_customer_range_yuan_per_ton": {
-        "min": 3830,
-        "max": 3850
-      }
+    "performance": {
+      "monthly_data": [
+        {"month": "2月", "volume_tons": 8200, "revenue_wan_yuan": 3116, "gross_margin_percent": 3.2},
+        {"month": "3月", "volume_tons": 9500, "revenue_wan_yuan": 3658, "gross_margin_percent": null},
+        {"month": "4月", "volume_tons": 10300, "revenue_wan_yuan": 4017, "gross_margin_percent": 2.4}
+      ],
+      "trend": "量增利减：销量逐月增长，毛利率从3.2%降至2.4%"
     },
-    "execution_plan": {
-      "total_target_tons": {
-        "min": 2000,
-        "max": 2500
-      },
-      "key_customers": [
-        {
-          "name": "浙江建投",
-          "target_tons_min": 800,
-          "target_tons_max": 1000,
-          "target_price_yuan_per_ton": 3880,
-          "customer_type": "稳定客户"
-        },
-        {
-          "name": "江苏交工",
-          "target_tons_min": 500,
-          "target_tons_max": 700,
-          "target_price_yuan_per_ton_min": 3830,
-          "target_price_yuan_per_ton_max": 3850,
-          "customer_type": "价格敏感客户",
-          "conditions": "控制账期和让利条件"
-        },
-        {
-          "name": "杭州路桥及零散客户",
-          "target_tons_min": 600,
-          "target_tons_max": 800,
-          "target_price_yuan_per_ton_min": 3880,
-          "target_price_yuan_per_ton_max": 3900,
-          "customer_type": "稳定/零散客户"
-        }
-      ]
-    }
+    "key_decisions": [
+      {"decision_id": "D1", "description": "浙江建投3850元/吨是否作为最终底线？绑定条件？"},
+      {"decision_id": "D2", "description": "江苏交工3830元/吨是否作为最终底线？绑定条件？"},
+      {"decision_id": "D3", "description": "低于底线的审批层级和交换条件"}
+    ]
   },
-  "risk_summary": {
-    "high_risks": ["竞品低价持续冲击可能引发区域价格体系下移"],
-    "medium_risks": ["库存消化偏慢可能导致被动降价", "价格敏感客户转化压力大"]
-  },
-  "headquarters_support_needed": [
-    "特殊价格审批（低于3830元/吨）",
-    "账期灵活处理（绑定采购量或预付款）"
-  ]
+  "notes": "资产包 ID：east_china_asphalt_pricing_20260512 | 生成时间：2026-05-12 | MaterialAssetAgent"
 }

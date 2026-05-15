@@ -6,41 +6,47 @@
       "customer_id": "cust_001",
       "name": "浙江建投",
       "type": "稳定客户",
-      "region": "华东大区",
-      "tomorrow_target_tons_min": 800,
-      "tomorrow_target_tons_max": 1000,
-      "target_price_yuan_per_ton": 3880,
-      "price_range_yuan_per_ton": {
-        "min": 3880,
-        "max": 3900
-      },
-      "negotiation_focus": "争取3880元/吨，扩大采购量",
-      "risk_level": "低"
+      "region": "华东市场",
+      "price_sensitivity": "中高",
+      "core_demand": "续约价≤3880，否则部分订单分流",
+      "suggested_price_yuan_per_ton": {"min": 3880, "max": 3900},
+      "proposed_floor_yuan_per_ton": 3850,
+      "floor_pending": true,
+      "binding_conditions_needed": ["采购量承诺", "账期缩短"],
+      "competitor_pressure": "区域主流品牌3860–3890",
+      "risk_level": "高",
+      "contract_details_missing": true
     },
     {
       "customer_id": "cust_002",
       "name": "江苏交工",
       "type": "价格敏感客户",
-      "region": "华东大区",
-      "tomorrow_target_tons_min": 500,
-      "tomorrow_target_tons_max": 700,
-      "target_price_yuan_per_ton_min": 3830,
-      "target_price_yuan_per_ton_max": 3850,
-      "negotiation_focus": "控制账期和让利条件，低于3830需绑定采购量/账期/预付款",
-      "risk_level": "高"
+      "region": "华东市场",
+      "price_sensitivity": "高",
+      "core_demand": "要求跟价评估",
+      "suggested_price_yuan_per_ton": {"min": 3830, "max": 3850},
+      "proposed_floor_yuan_per_ton": 3830,
+      "floor_pending": true,
+      "binding_conditions_needed": ["预付款比例", "采购量"],
+      "competitor_pressure": "本地贸易商/地炼3820–3850",
+      "risk_level": "高",
+      "contract_details_missing": true
     },
     {
       "customer_id": "cust_003",
       "name": "杭州路桥",
       "type": "稳定客户",
-      "region": "华东大区",
-      "tomorrow_target_tons_min": 600,
-      "tomorrow_target_tons_max": 800,
-      "target_price_yuan_per_ton_min": 3880,
-      "target_price_yuan_per_ton_max": 3900,
-      "negotiation_focus": "尽量维持3880–3900元/吨",
-      "risk_level": "低"
+      "region": "华东市场",
+      "price_sensitivity": "中低",
+      "core_demand": "更关注供货连续性",
+      "suggested_price_yuan_per_ton": {"min": 3880, "max": 3900},
+      "proposed_floor_yuan_per_ton": 3860,
+      "floor_pending": false,
+      "binding_conditions_needed": ["长期合作框架"],
+      "competitor_pressure": "较小",
+      "risk_level": "低",
+      "contract_details_missing": true
     }
   ],
-  "notes": "零散客户合并计入杭州路桥目标量中。合同到期日、年度采购量等详细信息缺失，详见 missing_info.json。"
+  "notes": "三大重点客户合同详情（年度采购量、合同到期日、历史条款）均缺失，详见 missing_info.json。"
 }

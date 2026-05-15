@@ -7,8 +7,12 @@ import {
   buildRunInspectorModel,
   buildStreamErrorMessage,
   buildSubagentProcessCard,
+  buildTraceSubagentProcessCards,
+  buildLatestRunOutput,
+  buildRunExecutionSummary,
   buildTaskProgress,
   deriveTaskTitle,
+  mergeConversationRowsWithLatestOutput,
   mergeConversationRows,
   normalizeStreamMessages,
   resolveEvidenceRefreshInterval,
@@ -156,6 +160,133 @@ describe('workspace view model', () => {
       statusLabel: '已完成',
       preview: 'Final tracking seed ready',
       elapsedLabel: '1m 42s'
+    });
+  });
+
+  it('rebuilds completed subagent process cards from archived trace evidence', () => {
+    const trace = buildExecutionTraceModel([
+      {
+        event_id: 'evt_msg',
+        method: 'messages',
+        params: {
+          timestamp: '2026-05-14T02:00:00Z',
+          namespace: ['material_asset_agent:run-123'],
+          data: { event: 'message-start', role: 'ai', id: 'msg_1', content: 'Collecting source material' }
+        }
+      },
+      {
+        event_id: 'evt_tool',
+        method: 'tools',
+        params: {
+          timestamp: '2026-05-14T02:01:42Z',
+          namespace: ['material_asset_agent:run-123'],
+          data: {
+            event: 'tool-finished',
+            tool_name: 'build_material_handoff_feedback',
+            tool_call_id: 'tool_1',
+            output: { completion_summary: 'Asset package ready' }
+          }
+        }
+      }
+    ]);
+
+    expect(buildTraceSubagentProcessCards(trace, 'complete')).toMatchObject([
+      {
+        title: 'material_asset_agent',
+        status: 'complete',
+        preview: '{"completion_summary":"Asset package ready"}',
+        elapsedLabel: '1m 42s'
+      }
+    ]);
+  });
+
+  it('finds the latest user-facing run output from trace messages', () => {
+    const trace = buildExecutionTraceModel([
+      {
+        event_id: 'evt_lifecycle',
+        method: 'lifecycle',
+        params: {
+          timestamp: '2026-05-15T02:00:00Z',
+          namespace: [],
+          data: { event: 'running', graph_name: 'pricing_meeting_agent' }
+        }
+      },
+      {
+        event_id: 'evt_message',
+        method: 'values',
+        params: {
+          timestamp: '2026-05-15T02:00:03Z',
+          namespace: [],
+          data: {
+            messages: [
+              {
+                type: 'ai',
+                id: 'msg_1',
+                name: 'pricing_meeting_agent',
+                content: '当前没有任何物料资产。你想先做哪一步？'
+              }
+            ]
+          }
+        }
+      }
+    ]);
+
+    expect(buildLatestRunOutput(trace)).toMatchObject({
+      title: 'pricing_meeting_agent',
+      content: '当前没有任何物料资产。你想先做哪一步？'
+    });
+  });
+
+  it('uses latest run output as a conversation fallback without duplicating streamed replies', () => {
+    const fallback = { title: 'pricing_meeting_agent', content: '你想先做哪一步？' };
+
+    expect(
+      mergeConversationRowsWithLatestOutput(
+        [{ id: 'user_1', role: 'user', actor: '用户', content: '现在有多少物料资产？' }],
+        fallback
+      )
+    ).toEqual([
+      { id: 'user_1', role: 'user', actor: '用户', content: '现在有多少物料资产？' },
+      {
+        id: 'trace_latest_output',
+        role: 'assistant',
+        actor: 'pricing_meeting_agent',
+        content: '你想先做哪一步？'
+      }
+    ]);
+
+    expect(
+      mergeConversationRowsWithLatestOutput(
+        [
+          { id: 'user_1', role: 'user', actor: '用户', content: '现在有多少物料资产？' },
+          { id: 'assistant_1', role: 'assistant', actor: 'PricingMeetingAgent', content: '你想先做哪一步？' }
+        ],
+        fallback
+      )
+    ).toHaveLength(2);
+  });
+
+  it('builds a generic execution summary from run state instead of latest output text', () => {
+    expect(
+      buildRunExecutionSummary(
+        interactionRun('run_1', 'running'),
+        { liveSubagentCount: 0, archivedSubagentCount: 0, progressCount: 0 }
+      )
+    ).toEqual({
+      label: '运行中',
+      title: '主流程处理中',
+      description: '当前任务仍在执行。'
+    });
+
+    expect(
+      buildRunExecutionSummary(
+        interactionRun('run_2', 'complete'),
+        { liveSubagentCount: 0, archivedSubagentCount: 2, progressCount: 0 }
+      )
+    ).toEqual({
+      label: '已完成',
+      title: '本轮协同已完成',
+      description: '2 个协同单元已完成。'
     });
   });
 
@@ -499,6 +630,65 @@ describe('workspace view model', () => {
     ]);
   });
 
+  it('projects explicit tool output artifacts and expands generic manifest children', () => {
+    const model = buildRunInspectorModel([
+      lifecycleEvent('thread_1:1', 1, 'running', '2026-05-15T01:00:00.000Z', 'run_1'),
+      {
+        type: 'event',
+        event_id: 'thread_1:2',
+        seq: 2,
+        method: 'tools',
+        params: {
+          namespace: ['material_asset_agent:run_1'],
+          timestamp: '2026-05-15T01:00:01.000Z',
+          data: {
+            event: 'tool-finished',
+            tool_name: 'build_material_handoff_feedback',
+            run_id: 'run_1',
+            output: {
+              artifacts: [
+                {
+                  id: 'manifest_1',
+                  title: 'Material package',
+                  role: 'manifest',
+                  source: 'inline',
+                  mime_type: 'application/json',
+                  content: {
+                    artifacts: [
+                      {
+                        id: 'brief_1',
+                        title: 'Meeting brief',
+                        role: 'deliverable',
+                        source: 'workspace',
+                        uri: '/artifacts/material-package/meeting-brief.md',
+                        mime_type: 'text/markdown'
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      lifecycleEvent('thread_1:3', 3, 'completed', '2026-05-15T01:00:03.000Z', 'run_1')
+    ]);
+
+    expect(model.artifactsByRunId.run_1).toMatchObject([
+      {
+        id: 'manifest_1',
+        role: 'manifest',
+        source: 'inline'
+      },
+      {
+        id: 'brief_1',
+        role: 'deliverable',
+        source: 'workspace',
+        kind: 'document'
+      }
+    ]);
+  });
+
   it('expands generic manifest children without relying on business file names', () => {
     const model = buildRunInspectorModel([
       lifecycleEvent('thread_1:1', 1, 'running', '2026-05-15T01:00:00.000Z'),
@@ -698,6 +888,28 @@ function artifactDescriptor(
     role,
     source: 'inline' as const,
     ...overrides
+  };
+}
+
+function interactionRun(id: string, status: 'running' | 'complete' | 'error' | 'waiting' | 'unknown') {
+  return {
+    id,
+    title: id,
+    status,
+    eventIds: [],
+    lifecycleEventIds: [],
+    rootNodeIds: [],
+    metrics: {
+      agentCount: 0,
+      toolCallCount: 0,
+      taskCount: 0,
+      todoCompleted: 0,
+      todoTotal: 0,
+      artifactCount: 0,
+      citationCount: 0,
+      diagnosticCount: 0,
+      duplicateEventCount: 0
+    }
   };
 }
 

@@ -4,90 +4,23 @@
     {
       "source_id": "interview_card_east_china_001",
       "source_type": "interview_card",
-      "source_name": "华东大区负责人张三会前访谈卡片",
+      "source_name": "华东大区负责人张三会前访谈卡片（定价专项）",
       "interview_date": "2026-05-11",
       "interviewee": "张三",
-      "role": "华东大区负责人",
-      "content_summary": "涵盖需求端、价格端、库存端、成本与供应端、走势预判、执行计划及风险提示等核心信息"
+      "role": "华东大区业务负责人",
+      "content_summary": "涵盖定价现状、成本结构、市场竞争格局、客户分析、业绩数据、定价建议及风险提示等核心信息"
     }
   ],
   "claims": [
-    {
-      "claim_id": "claim_001",
-      "claim": "华东区沥青需求判断为中性偏强，预估日需求量3500–4200吨。",
-      "claim_type": "judgement",
-      "source_refs": ["interview_card_east_china_001"],
-      "confidence": "high"
-    },
-    {
-      "claim_id": "claim_002",
-      "claim": "驱动因素包括江浙市政道路项目集中施工、终端采购量环比增加5%-10%。",
-      "claim_type": "fact",
-      "source_refs": ["interview_card_east_china_001"],
-      "confidence": "high"
-    },
-    {
-      "claim_id": "claim_003",
-      "claim": "主流成交价3860–3880元/吨，较前期下调约20元。",
-      "claim_type": "fact",
-      "source_refs": ["interview_card_east_china_001"],
-      "confidence": "high"
-    },
-    {
-      "claim_id": "claim_004",
-      "claim": "竞品低价区间3820–3850元/吨。",
-      "claim_type": "fact",
-      "source_refs": ["interview_card_east_china_001"],
-      "confidence": "medium"
-    },
-    {
-      "claim_id": "claim_005",
-      "claim": "我方报价策略为'稳主价、分客户跟价'，稳定客户3880–3900元/吨，价格敏感客户3830–3850元/吨。",
-      "claim_type": "suggestion",
-      "source_refs": ["interview_card_east_china_001"],
-      "confidence": "high"
-    },
-    {
-      "claim_id": "claim_006",
-      "claim": "华东区库存1.8–2.1万吨，中等偏高，略高于安全库存。",
-      "claim_type": "fact",
-      "source_refs": ["interview_card_east_china_001"],
-      "confidence": "high"
-    },
-    {
-      "claim_id": "claim_007",
-      "claim": "去库速度偏慢，库存趋势未明显累积但消化偏慢。",
-      "claim_type": "judgement",
-      "source_refs": ["interview_card_east_china_001"],
-      "confidence": "medium"
-    },
-    {
-      "claim_id": "claim_008",
-      "claim": "炼厂出厂价小幅松动，下调20–40元/吨。",
-      "claim_type": "fact",
-      "source_refs": ["interview_card_east_china_001"],
-      "confidence": "high"
-    },
-    {
-      "claim_id": "claim_009",
-      "claim": "明日华东区价格走势继续承压、弱稳运行，主流3860–3880元/吨。",
-      "claim_type": "judgement",
-      "source_refs": ["interview_card_east_china_001"],
-      "confidence": "medium"
-    },
-    {
-      "claim_id": "claim_010",
-      "claim": "明日成交目标2000–2500吨，浙江建投800–1000吨，江苏交工500–700吨，杭州路桥及零散客户600–800吨。",
-      "claim_type": "suggestion",
-      "source_refs": ["interview_card_east_china_001"],
-      "confidence": "high"
-    },
-    {
-      "claim_id": "claim_011",
-      "claim": "风险：竞品低价持续冲击可能引发区域价格体系下移；库存消化偏慢可能导致被动降价。",
-      "claim_type": "judgement",
-      "source_refs": ["interview_card_east_china_001"],
-      "confidence": "medium"
-    }
+    {"claim_id": "claim_001", "claim": "官方指导价 3,900–3,950 元/吨，实际成交价重心 3,860–3,880 元/吨，较前期下移约 20 元。", "claim_type": "fact", "source_refs": ["interview_card_east_china_001"], "confidence": "high"},
+    {"claim_id": "claim_002", "claim": "综合成本线 3,720–3,760 元/吨，保守测算 3,750 元/吨。", "claim_type": "fact", "source_refs": ["interview_card_east_china_001"], "confidence": "high"},
+    {"claim_id": "claim_003", "claim": "毛利率区间 2.1%–3.5%，3880→130元(3.5%)，3860→110元(2.9%)，3850→100元(2.7%)，3830→80元(2.1%)。", "claim_type": "fact", "source_refs": ["interview_card_east_china_001"], "confidence": "high"},
+    {"claim_id": "claim_004", "claim": "区域主流品牌供应商报价 3,860–3,890 元/吨，本地贸易商/地炼 3,820–3,850 元/吨，小型贸易商 3,800–3,830 元/吨。", "claim_type": "fact", "source_refs": ["interview_card_east_china_001"], "confidence": "high"},
+    {"claim_id": "claim_005", "claim": "浙江建投价格敏感度中高，希望续约价 ≤ 3,880；江苏交工价格敏感度高，竞品报价 3,820–3,850；杭州路桥更关注供货连续性。", "claim_type": "fact", "source_refs": ["interview_card_east_china_001"], "confidence": "high"},
+    {"claim_id": "claim_006", "claim": "2月销量 8,200 吨/3,116 万元/毛利率 3.2%；3月 9,500 吨/3,658 万元；4月 10,300 吨/4,017 万元/毛利率 2.4%。", "claim_type": "fact", "source_refs": ["interview_card_east_china_001"], "confidence": "high"},
+    {"claim_id": "claim_007", "claim": "定价策略为稳主价、分客户跟价：稳定客户 3,880–3,900 元/吨，价格敏感客户 3,830–3,850 元/吨。", "claim_type": "suggestion", "source_refs": ["interview_card_east_china_001"], "confidence": "high"},
+    {"claim_id": "claim_008", "claim": "低于底线需绑定采购量、账期缩短、预付款或专项审批。", "claim_type": "suggestion", "source_refs": ["interview_card_east_china_001"], "confidence": "high"},
+    {"claim_id": "claim_009", "claim": "三大风险：大客户分流、利润压缩、区域价格体系扰动。", "claim_type": "judgement", "source_refs": ["interview_card_east_china_001"], "confidence": "high"},
+    {"claim_id": "claim_010", "claim": "待决策事项：浙江建投 3,850 是否底线、江苏交工 3,830 是否底线、低于底线的审批层级和交换条件。", "claim_type": "suggestion", "source_refs": ["interview_card_east_china_001"], "confidence": "high"}
   ]
 }

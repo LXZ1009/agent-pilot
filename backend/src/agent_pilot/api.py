@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
@@ -81,7 +82,10 @@ def create_app(
     )
     app.state.agent_gateway = agent_gateway or LangGraphAgentGateway.from_env()
     app.state.evidence_archive = evidence_archive or EvidenceArchive()
-    app.state.artifact_registry = artifact_registry or ArtifactRegistry(app.state.evidence_archive)
+    app.state.artifact_registry = artifact_registry or ArtifactRegistry(
+        app.state.evidence_archive,
+        workspace_roots=[Path(__file__).resolve().parent],
+    )
 
     @app.get("/api/health")
     async def health() -> dict[str, str]:

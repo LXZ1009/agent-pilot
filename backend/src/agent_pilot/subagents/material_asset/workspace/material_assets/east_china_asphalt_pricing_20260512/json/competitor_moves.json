@@ -1,23 +1,38 @@
 {
   "asset_type": "competitor_moves",
   "asset_package_id": "east_china_asphalt_pricing_20260512",
-  "region": "华东大区",
+  "region": "华东市场",
+  "product": "道路石油沥青 70# A级",
   "report_date": "2026-05-12",
   "competitors": [
     {
-      "competitor_name": "未明确（访谈中未提供具体名称）",
-      "low_price_range_yuan_per_ton": {
-        "min": 3820,
-        "max": 3850
-      },
-      "price_vs_our_mainstream_yuan_per_ton": {
-        "gap_min": -40,
-        "gap_max": -20
-      },
+      "tier": "区域主流品牌供应商",
+      "price_range_yuan_per_ton": {"min": 3860, "max": 3890},
+      "price_vs_our_mainstream_yuan_per_ton": {"gap_min": -20, "gap_max": 10},
+      "affected_customers": ["浙江建投等续约客户"],
       "additional_conditions": "未知（账期、返利、配送条件未提供）",
-      "impact_assessment": "竞品低价持续冲击，可能引发区域价格体系下移"
+      "impact_assessment": "对浙江建投等续约客户形成直接竞争压力"
+    },
+    {
+      "tier": "本地贸易商/地炼渠道",
+      "price_range_yuan_per_ton": {"min": 3820, "max": 3850},
+      "price_vs_our_mainstream_yuan_per_ton": {"gap_min": -40, "gap_max": -30},
+      "affected_customers": ["江苏交工冲击较大"],
+      "additional_conditions": "未知（账期、返利、配送条件未提供）",
+      "impact_assessment": "对江苏交工形成较大价格冲击，可能引发跟价评估"
+    },
+    {
+      "tier": "小型贸易商",
+      "price_range_yuan_per_ton": {"min": 3800, "max": 3830},
+      "price_vs_our_mainstream_yuan_per_ton": {"gap_min": -60, "gap_max": -50},
+      "affected_customers": ["零散项目客户"],
+      "additional_conditions": "未知（账期、返利、配送条件未提供）",
+      "impact_assessment": "影响零散项目客户，但量级较小"
     }
   ],
   "competitive_pressure_level": "高",
-  "notes": "竞品具体名称和报价明细缺失，详见 missing_info.json。"
+  "our_positioning": "中高价位",
+  "our_advantages": ["供货稳定", "质量可控", "配送响应好"],
+  "our_disadvantages": ["短期价格灵活性不如贸易商"],
+  "notes": "竞品具体名称和各层级报价明细缺失，详见 missing_info.json。"
 }

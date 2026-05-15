@@ -1,0 +1,34 @@
+{
+  "asset_package_id": "material_package_undetermined",
+  "preview_title": "定价会议五分钟预览",
+  "generated_at": "2026-01-15T00:00:00Z",
+  "status": "template_only",
+  "sections": [
+    {
+      "section_id": "overview",
+      "title": "会议概览",
+      "content": "**会议主题**：待补充\n**目标对象**：待补充\n**会议日期**：待补充",
+      "data_status": "missing"
+    },
+    {
+      "section_id": "key_points",
+      "title": "关键要点",
+      "content": "暂无数据。需提供访谈卡片和客户信息后生成。",
+      "data_status": "missing"
+    },
+    {
+      "section_id": "risks",
+      "title": "风险提示",
+      "content": "暂无数据。需提供风险因素后生成预警清单。",
+      "data_status": "missing"
+    },
+    {
+      "section_id": "next_steps",
+      "title": "下一步",
+      "content": "请主 Agent 提供以下信息以完成预览素材：\n1. 业务场景和目标对象\n2. 会议日期\n3. 访谈卡片数据\n4. 客户信息和价格数据\n5. 竞品动态",
+      "data_status": "action_required"
+    }
+  ],
+  "notification_ready": false,
+  "reason_not_ready": "缺少业务场景、目标对象、会议日期等核心字段，以及访谈卡片、客户数据、价格数据和竞品动态等业务数据。"
+}

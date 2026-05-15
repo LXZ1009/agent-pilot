@@ -102,6 +102,41 @@ def test_langgraph_gateway_publishes_stable_run_id_on_lifecycle_events():
     asyncio.run(scenario())
 
 
+def test_langgraph_gateway_propagates_run_id_to_tool_events():
+    async def scenario():
+        client = FakeLangGraphClient()
+        client.runs.parts = [
+            {
+                "type": "debug",
+                "data": {
+                    "event": "on_tool_end",
+                    "name": "build_material_handoff_feedback",
+                    "tool_call_id": "tool_1",
+                    "data": {"output": {"artifacts": []}},
+                },
+            }
+        ]
+        gateway = LangGraphAgentGateway("http://test", client=client)
+
+        response = await gateway.handle_command(
+            "11111111-1111-4111-8111-111111111111",
+            {
+                "id": 10,
+                "method": "run.start",
+                "params": {"assistant_id": "supervisor"},
+            },
+        )
+
+        event = await asyncio.wait_for(
+            anext(gateway.stream("11111111-1111-4111-8111-111111111111", {"channels": ["tools"]})),
+            timeout=1,
+        )
+
+        assert event["params"]["data"]["run_id"] == response["result"]["run_id"]
+
+    asyncio.run(scenario())
+
+
 def test_langgraph_gateway_projects_message_chunks_to_protocol_events():
     async def scenario():
         client = FakeLangGraphClient()

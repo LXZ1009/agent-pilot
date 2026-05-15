@@ -2,52 +2,57 @@
   "asset_type": "price_execution_summary",
   "asset_package_id": "east_china_asphalt_pricing_20260512",
   "summary_date": "2026-05-12",
-  "region": "华东大区",
-  "official_price_yuan_per_ton": {
-    "range_min": 3880,
-    "range_max": 3900,
-    "note": "官方指导价"
-  },
+  "region": "华东市场",
+  "product": "道路石油沥青 70# A级",
+  "official_price_yuan_per_ton": {"range_min": 3900, "range_max": 3950, "note": "官方指导价"},
   "actual_transaction_price_yuan_per_ton": {
     "mainstream_range_min": 3860,
     "mainstream_range_max": 3880,
     "previous_range_min": 3880,
     "previous_range_max": 3900,
-    "change_yuan_per_ton": -20
+    "change_yuan_per_ton": -20,
+    "note": "较前期下移约20元/吨"
+  },
+  "cost_reference": {
+    "comprehensive_cost_line_yuan_per_ton": {"min": 3720, "max": 3760},
+    "conservative_estimate_yuan_per_ton": 3750
   },
   "customer_specific_pricing": [
     {
       "customer_name": "浙江建投",
       "customer_type": "稳定客户",
-      "quoted_price_yuan_per_ton_min": 3880,
-      "quoted_price_yuan_per_ton_max": 3900,
-      "target_price_yuan_per_ton": 3880,
-      "price_gap_vs_mainstream_yuan_per_ton": 0
+      "suggested_price_yuan_per_ton": {"min": 3880, "max": 3900},
+      "proposed_floor_yuan_per_ton": 3850,
+      "floor_pending": true,
+      "binding_conditions": ["采购量承诺", "账期缩短"]
     },
     {
       "customer_name": "杭州路桥",
       "customer_type": "稳定客户",
-      "quoted_price_yuan_per_ton_min": 3880,
-      "quoted_price_yuan_per_ton_max": 3900,
-      "price_gap_vs_mainstream_yuan_per_ton": 0
+      "suggested_price_yuan_per_ton": {"min": 3880, "max": 3900},
+      "proposed_floor_yuan_per_ton": 3860,
+      "floor_pending": false,
+      "binding_conditions": ["长期合作框架"]
     },
     {
       "customer_name": "江苏交工",
       "customer_type": "价格敏感客户",
-      "quoted_price_yuan_per_ton_min": 3830,
-      "quoted_price_yuan_per_ton_max": 3850,
-      "price_gap_vs_mainstream_yuan_per_ton_min": -30,
-      "price_gap_vs_mainstream_yuan_per_ton_max": -30
+      "suggested_price_yuan_per_ton": {"min": 3830, "max": 3850},
+      "proposed_floor_yuan_per_ton": 3830,
+      "floor_pending": true,
+      "binding_conditions": ["预付款比例", "采购量"]
     }
   ],
-  "competitor_low_price_yuan_per_ton": {
-    "range_min": 3820,
-    "range_max": 3850
-  },
+  "margin_calculation_table": [
+    {"price_yuan_per_ton": 3880, "margin_yuan_per_ton": 130, "margin_percent": 3.5},
+    {"price_yuan_per_ton": 3860, "margin_yuan_per_ton": 110, "margin_percent": 2.9},
+    {"price_yuan_per_ton": 3850, "margin_yuan_per_ton": 100, "margin_percent": 2.7},
+    {"price_yuan_per_ton": 3830, "margin_yuan_per_ton": 80, "margin_percent": 2.1}
+  ],
   "floor_price_rule": {
-    "threshold_yuan_per_ton": 3830,
-    "conditions": "低于3830需绑定采购量/账期/预付款"
+    "threshold_description": "低于各客户底线需绑定至少一项条件",
+    "conditions": ["采购量承诺", "账期缩短", "预付款比例提升", "专项审批"]
   },
   "pricing_strategy": "稳主价、分客户跟价",
-  "notes": "历史执行趋势和预期毛利空间数据缺失，详见 missing_info.json。"
+  "notes": "浙江建投和江苏交工的最终底线待决策会议确认。"
 }

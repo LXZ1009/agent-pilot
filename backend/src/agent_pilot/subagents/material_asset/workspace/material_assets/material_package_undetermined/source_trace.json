@@ -1,0 +1,6 @@
+{
+  "asset_package_id": "material_package_undetermined",
+  "sources": [],
+  "claims": [],
+  "notes": "当前资产包为模板状态，尚未接入任何访谈卡片或业务数据源。待主 Agent 提供会议上下文、访谈结果和业务输入后补充来源追溯。"
+}

@@ -1,0 +1,127 @@
+{
+  "asset_package_id": "material_package_undetermined",
+  "asset_package_name": "定价会议物料资产包（待补充）",
+  "business_scenario": "未指定（需主 Agent 提供：如重点客户续约定价会议/区域沥青调价/新品报价等）",
+  "target_object": "未指定",
+  "meeting_date": "未指定",
+  "storage_path": "workspace/material_assets/material_package_undetermined",
+  "package_status": "pending_info",
+  "main_asset_id": "meeting_brief_md",
+  "read_entry": {
+    "default_asset": "meeting_brief_md",
+    "read_mode": "index_first",
+    "recommended_read_order": [
+      "meeting_brief_md",
+      "meeting_overview_card_json",
+      "risk_warning_list_json",
+      "five_minute_preview_payload_json",
+      "missing_info_json",
+      "source_trace_json"
+    ]
+  },
+  "assets": [
+    {
+      "asset_id": "meeting_brief_md",
+      "asset_name": "会议简报",
+      "asset_type": "markdown",
+      "file_path": "markdown/meeting_brief.md",
+      "business_usage": "meeting_preview",
+      "status": "completed_template",
+      "read_priority": 1,
+      "source_refs": [],
+      "tags": ["会议简报", "定价会议", "模板"]
+    },
+    {
+      "asset_id": "meeting_overview_card_json",
+      "asset_name": "会议概览卡片",
+      "asset_type": "json",
+      "file_path": "json/meeting_overview_card.json",
+      "business_usage": "meeting_preview",
+      "status": "pending_data",
+      "read_priority": 2,
+      "source_refs": [],
+      "tags": ["会议概览", "定价会议"]
+    },
+    {
+      "asset_id": "interview_cards_json",
+      "asset_name": "访谈卡片集合",
+      "asset_type": "json",
+      "file_path": "json/interview_cards.json",
+      "business_usage": "pre_meeting_preparation",
+      "status": "pending_data",
+      "read_priority": 3,
+      "source_refs": [],
+      "tags": ["访谈卡片", "会前访谈"]
+    },
+    {
+      "asset_id": "key_customer_list_json",
+      "asset_name": "重点客户清单",
+      "asset_type": "json",
+      "file_path": "json/key_customer_list.json",
+      "business_usage": "customer_value_assessment",
+      "status": "pending_data",
+      "read_priority": 4,
+      "source_refs": [],
+      "tags": ["重点客户", "客户价值"]
+    },
+    {
+      "asset_id": "price_execution_summary_json",
+      "asset_name": "价格执行摘要",
+      "asset_type": "json",
+      "file_path": "json/price_execution_summary.json",
+      "business_usage": "pricing_strategy",
+      "status": "pending_data",
+      "read_priority": 5,
+      "source_refs": [],
+      "tags": ["价格执行", "成交价对比"]
+    },
+    {
+      "asset_id": "competitor_moves_json",
+      "asset_name": "竞品动态",
+      "asset_type": "json",
+      "file_path": "json/competitor_moves.json",
+      "business_usage": "competitive_analysis",
+      "status": "pending_data",
+      "read_priority": 6,
+      "source_refs": [],
+      "tags": ["竞品动态", "竞争分析"]
+    },
+    {
+      "asset_id": "risk_warning_list_json",
+      "asset_name": "风险预警清单",
+      "asset_type": "json",
+      "file_path": "json/risk_warning_list.json",
+      "business_usage": "risk_management",
+      "status": "pending_data",
+      "read_priority": 7,
+      "source_refs": [],
+      "tags": ["风险预警", "流失风险"]
+    },
+    {
+      "asset_id": "five_minute_preview_payload_json",
+      "asset_name": "会前五分钟预览",
+      "asset_type": "json",
+      "file_path": "json/five_minute_preview_payload.json",
+      "business_usage": "notification_push",
+      "status": "pending_data",
+      "read_priority": 8,
+      "source_refs": [],
+      "tags": ["会前预览", "通知推送"]
+    },
+    {
+      "asset_id": "task_tracking_seed_json",
+      "asset_name": "任务跟踪种子",
+      "asset_type": "json",
+      "file_path": "json/task_tracking_seed.json",
+      "business_usage": "post_meeting_tracking",
+      "status": "pending_data",
+      "read_priority": 9,
+      "source_refs": [],
+      "tags": ["任务跟踪", "会后跟进"]
+    }
+  ],
+  "generated_asset_count": 1,
+  "pending_data_count": 8,
+  "created_at": "2026-01-15T00:00:00Z",
+  "version": "v1"
+}

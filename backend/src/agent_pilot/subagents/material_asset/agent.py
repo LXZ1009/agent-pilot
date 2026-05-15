@@ -12,6 +12,9 @@ from agent_pilot.meeting_contracts import (
     get_material_asset_catalog,
 )
 from agent_pilot.model_config import get_model
+from agent_pilot.subagents.material_asset.artifact_manifest import (
+    build_material_artifact_manifest,
+)
 from agent_pilot.subagents.material_asset.skill_loader import (
     SKILL_SOURCES,
 )
@@ -65,6 +68,19 @@ def build_material_handoff_feedback(
             "可进入会前预览、通知推送或会议材料查看环节。"
         )
 
+    artifacts: list[dict[str, Any]] = []
+    manifest = build_material_artifact_manifest(
+        asset_package_id=asset_package_id,
+        asset_package_name=asset_package_name,
+        storage_path=storage_path,
+        main_asset=main_asset,
+        asset_index=asset_index,
+        workspace_root=Path(__file__).resolve().parent,
+        public_root_prefix="subagents/material_asset",
+    )
+    if manifest is not None:
+        artifacts.append(manifest)
+
     return {
         "handoff_status": handoff_status,
         "completion_summary": completion_summary,
@@ -77,6 +93,7 @@ def build_material_handoff_feedback(
         "generated_assets": generated_assets,
         "pending_info_count": pending_info_count,
         "pending_fields": pending_fields,
+        "artifacts": artifacts,
         "suggested_next_step": suggested_next_step
         or (
             "请主 Agent 读取主资产和资产索引，并根据缺失信息决定是否继续访谈补充。"

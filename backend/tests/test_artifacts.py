@@ -155,6 +155,66 @@ def test_artifact_content_api_rejects_oversized_inline_content() -> None:
     asyncio.run(scenario())
 
 
+def test_artifact_list_api_expands_declared_tool_output_manifest_children(tmp_path: Path) -> None:
+    async def scenario():
+        brief = tmp_path / "brief.md"
+        brief.write_text("# Brief", encoding="utf-8")
+
+        archive = EvidenceArchive()
+        archive.append("thread_1", lifecycle("evt_1", "running", "run_1"))
+        archive.append(
+            "thread_1",
+            tool_finished_event(
+                "evt_2",
+                "run_1",
+                output={
+                    "artifacts": [
+                        {
+                            "id": "manifest_1",
+                            "title": "Material package",
+                            "role": "manifest",
+                            "source": "inline",
+                            "mime_type": "application/json",
+                            "content": {
+                                "artifacts": [
+                                    {
+                                        "id": "brief_1",
+                                        "title": "Meeting brief",
+                                        "role": "deliverable",
+                                        "source": "workspace",
+                                        "uri": "/artifacts/material-package/brief.md",
+                                        "mime_type": "text/markdown",
+                                        "metadata": {"workspace_path": "brief.md"},
+                                    }
+                                ]
+                            },
+                        }
+                    ]
+                },
+            ),
+        )
+
+        app = create_app(
+            evidence_archive=archive,
+            artifact_registry=ArtifactRegistry(archive, workspace_roots=[tmp_path]),
+        )
+        transport = ASGITransport(app=app)
+
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            list_response = await client.get("/api/threads/thread_1/artifacts", params={"run_id": "run_1"})
+            content_response = await client.get("/api/threads/thread_1/artifacts/brief_1")
+
+        assert list_response.status_code == 200
+        assert [artifact["id"] for artifact in list_response.json()["artifacts"]] == [
+            "manifest_1",
+            "brief_1",
+        ]
+        assert content_response.status_code == 200
+        assert content_response.json()["content"] == "# Brief"
+
+    asyncio.run(scenario())
+
+
 def lifecycle(event_id: str, event: str, run_id: str) -> dict:
     return {
         "type": "event",
@@ -193,6 +253,23 @@ def artifact_event(
                 "type": "artifact.created",
                 "run_id": run_id,
                 "artifact": payload,
+            },
+        },
+    }
+
+
+def tool_finished_event(event_id: str, run_id: str, *, output: dict) -> dict:
+    return {
+        "type": "event",
+        "event_id": event_id,
+        "method": "tools",
+        "params": {
+            "namespace": [],
+            "data": {
+                "event": "tool-finished",
+                "tool_name": "build_material_handoff_feedback",
+                "run_id": run_id,
+                "output": output,
             },
         },
     }

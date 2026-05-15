@@ -30,12 +30,16 @@ import {
 } from './api';
 import {
   buildExecutionTraceModel,
+  buildLatestRunOutput,
+  buildRunExecutionSummary,
   buildRunInspectorModel,
   buildStreamErrorMessage,
   buildSubagentProcessCard,
+  buildTraceSubagentProcessCards,
   deriveTaskTitle,
   mergeArtifactDescriptors,
   mergeConversationRows,
+  mergeConversationRowsWithLatestOutput,
   normalizeStreamMessages,
   resolveEvidenceRefreshInterval,
   sortArtifactsForWorkspace,
@@ -84,11 +88,10 @@ function App() {
     const projectedMessages = stream.messages.length > 0 ? stream.messages : stream.values.messages ?? [];
     return normalizeStreamMessages(projectedMessages);
   }, [stream.messages, stream.values.messages]);
-  const messages = useMemo(
+  const baseMessages = useMemo(
     () => mergeConversationRows(localMessages, streamMessages),
     [localMessages, streamMessages]
   );
-  const taskTitle = useMemo(() => deriveTaskTitle(messages), [messages]);
   const subagents = useMemo(() => [...stream.subagents.values()], [stream.subagents]);
   const runInspector = useMemo(() => buildRunInspectorModel(technicalEvents), [technicalEvents]);
   useEffect(() => {
@@ -112,6 +115,12 @@ function App() {
     () => (activeRun ? runInspector.traceByRunId[activeRun.id] : buildExecutionTraceModel([])),
     [activeRun, runInspector]
   );
+  const latestRunOutput = useMemo(() => buildLatestRunOutput(activeTrace), [activeTrace]);
+  const messages = useMemo(
+    () => mergeConversationRowsWithLatestOutput(baseMessages, latestRunOutput),
+    [baseMessages, latestRunOutput]
+  );
+  const taskTitle = useMemo(() => deriveTaskTitle(messages), [messages]);
   const progress = useMemo(() => buildHeaderProgress(activeRun, stream.isLoading), [activeRun, stream.isLoading]);
   const streamErrorMessage = useMemo(
     () => buildStreamErrorMessage(stream.error, hasStartedRun),
@@ -432,6 +441,12 @@ function RunInspectorPanel({
   const diagnostics = activeRunId ? runInspector.diagnosticsByRunId[activeRunId] ?? [] : [];
   const rawEvents = activeRunId ? runInspector.rawEventsByRunId[activeRunId] ?? [] : technicalEvents;
   const liveSubagents = activeRunId === runInspector.activeRunId ? subagents : [];
+  const archivedSubagentCards = buildTraceSubagentProcessCards(activeTrace, activeRun?.status);
+  const runExecutionSummary = buildRunExecutionSummary(activeRun, {
+    liveSubagentCount: liveSubagents.length,
+    archivedSubagentCount: archivedSubagentCards.length,
+    progressCount: progressItems.length
+  });
 
   if (!open) {
     return (
@@ -473,7 +488,14 @@ function RunInspectorPanel({
 
       <div className="evidence-scroll">
         {activeTab === 'progress' && (
-          <ProgressTab items={progressItems} trace={activeTrace} stream={stream} subagents={liveSubagents} />
+          <ProgressTab
+            items={progressItems}
+            trace={activeTrace}
+            stream={stream}
+            subagents={liveSubagents}
+            archivedSubagentCards={archivedSubagentCards}
+            runExecutionSummary={runExecutionSummary}
+          />
         )}
         {activeTab === 'trace' && <ExecutionTraceContent trace={activeTrace} />}
         {activeTab === 'artifacts' && <ArtifactsTab threadId={threadId} runId={activeRunId} artifacts={artifacts} />}
@@ -548,21 +570,35 @@ function ProgressTab({
   items,
   trace,
   stream,
-  subagents
+  subagents,
+  archivedSubagentCards,
+  runExecutionSummary
 }: {
   items: ProgressItem[];
   trace: ExecutionTraceModel;
   stream: AnyStream;
   subagents: SubagentDiscoverySnapshot[];
+  archivedSubagentCards: ReturnType<typeof buildTraceSubagentProcessCards>;
+  runExecutionSummary?: ReturnType<typeof buildRunExecutionSummary>;
 }) {
   const activeNodes = trace.nodes.filter((node) => node.status === 'running');
-  if (items.length === 0 && activeNodes.length === 0 && subagents.length === 0) {
+  if (
+    items.length === 0 &&
+    activeNodes.length === 0 &&
+    subagents.length === 0 &&
+    archivedSubagentCards.length === 0 &&
+    !runExecutionSummary
+  ) {
     return <EmptyPanel title="暂无进度" description="任务开始后会显示计划、待办和实时状态。" />;
   }
 
   return (
     <>
+      {runExecutionSummary && <RunExecutionSummaryCard summary={runExecutionSummary} />}
       {subagents.length > 0 && <SubagentProcessList stream={stream} subagents={subagents} />}
+      {subagents.length === 0 && archivedSubagentCards.length > 0 && (
+        <ArchivedSubagentProcessList cards={archivedSubagentCards} />
+      )}
       {(items.length > 0 || activeNodes.length > 0) && (
         <section className="progress-step-list">
           {items.map((item) => (
@@ -580,6 +616,66 @@ function ProgressTab({
         </section>
       )}
     </>
+  );
+}
+
+function RunExecutionSummaryCard({
+  summary
+}: {
+  summary: NonNullable<ReturnType<typeof buildRunExecutionSummary>>;
+}) {
+  return (
+    <section className="run-execution-summary">
+      <span>{summary.label}</span>
+      <strong>{summary.title}</strong>
+      <small>{summary.description}</small>
+    </section>
+  );
+}
+
+function ArchivedSubagentProcessList({ cards }: { cards: ReturnType<typeof buildTraceSubagentProcessCards> }) {
+  const completed = cards.filter((card) => card.status === 'complete').length;
+  const total = cards.length;
+  const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+  return (
+    <section className="subagent-process">
+      <div className="subagent-process-header">
+        <div>
+          <strong>子 Agent 执行</strong>
+          <span>{completed}/{total} 已完成</span>
+        </div>
+        <div className="subagent-progress-track" aria-hidden="true">
+          <div style={{ width: `${percent}%` }} />
+        </div>
+      </div>
+      <div className="subagent-card-list">
+        {cards.map((card) => (
+          <article key={card.id} className={`subagent-card ${card.status}`}>
+            <div className="subagent-card-top">
+              <div className="subagent-status-icon">
+                {card.status === 'running' ? (
+                  <Loader2 className="spin" size={15} />
+                ) : card.status === 'complete' ? (
+                  <CheckCircle2 size={15} />
+                ) : (
+                  <AlertCircle size={15} />
+                )}
+              </div>
+              <div>
+                <strong>{card.title}</strong>
+                <span>{card.description}</span>
+              </div>
+              <span className="subagent-status-badge">{card.statusLabel}</span>
+            </div>
+            <div className="subagent-preview">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{card.preview}</ReactMarkdown>
+            </div>
+            {card.elapsedLabel && <div className="subagent-elapsed">耗时 {card.elapsedLabel}</div>}
+          </article>
+        ))}
+      </div>
+    </section>
   );
 }
 
