@@ -1,0 +1,46 @@
+{
+  "asset_type": "key_customer_list",
+  "asset_package_id": "east_china_asphalt_pricing_20260512",
+  "customers": [
+    {
+      "customer_id": "cust_001",
+      "name": "浙江建投",
+      "type": "稳定客户",
+      "region": "华东大区",
+      "tomorrow_target_tons_min": 800,
+      "tomorrow_target_tons_max": 1000,
+      "target_price_yuan_per_ton": 3880,
+      "price_range_yuan_per_ton": {
+        "min": 3880,
+        "max": 3900
+      },
+      "negotiation_focus": "争取3880元/吨，扩大采购量",
+      "risk_level": "低"
+    },
+    {
+      "customer_id": "cust_002",
+      "name": "江苏交工",
+      "type": "价格敏感客户",
+      "region": "华东大区",
+      "tomorrow_target_tons_min": 500,
+      "tomorrow_target_tons_max": 700,
+      "target_price_yuan_per_ton_min": 3830,
+      "target_price_yuan_per_ton_max": 3850,
+      "negotiation_focus": "控制账期和让利条件，低于3830需绑定采购量/账期/预付款",
+      "risk_level": "高"
+    },
+    {
+      "customer_id": "cust_003",
+      "name": "杭州路桥",
+      "type": "稳定客户",
+      "region": "华东大区",
+      "tomorrow_target_tons_min": 600,
+      "tomorrow_target_tons_max": 800,
+      "target_price_yuan_per_ton_min": 3880,
+      "target_price_yuan_per_ton_max": 3900,
+      "negotiation_focus": "尽量维持3880–3900元/吨",
+      "risk_level": "低"
+    }
+  ],
+  "notes": "零散客户合并计入杭州路桥目标量中。合同到期日、年度采购量等详细信息缺失，详见 missing_info.json。"
+}

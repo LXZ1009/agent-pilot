@@ -1,0 +1,77 @@
+{
+  "asset_type": "task_tracking_seed",
+  "asset_package_id": "east_china_asphalt_pricing_20260512",
+  "generated_at": "2026-05-12T00:00:00Z",
+  "tasks": [
+    {
+      "task_id": "TASK-001",
+      "title": "补充竞品具体名称及报价明细",
+      "description": "获取竞品低价区间3820–3850元/吨的具体来源，含账期、返利、配送条件。",
+      "assigned_to": "华东大区负责人 / 客户经理",
+      "priority": "high",
+      "due_date": "2026-05-12",
+      "status": "pending",
+      "related_missing_id": "missing_001"
+    },
+    {
+      "task_id": "TASK-002",
+      "title": "获取近3个月华东区沥青销量、收入、毛利率数据",
+      "description": "提供近3个月华东区沥青的月度销量、收入和毛利率数据，用于评估价格调整对利润的影响。",
+      "assigned_to": "数据查询 Agent",
+      "priority": "high",
+      "due_date": "2026-05-12",
+      "status": "pending",
+      "related_missing_id": "missing_002"
+    },
+    {
+      "task_id": "TASK-003",
+      "title": "确认华东区安全库存阈值",
+      "description": "获取华东区沥青的安全库存具体数值。",
+      "assigned_to": "数据查询 Agent",
+      "priority": "medium",
+      "due_date": "2026-05-12",
+      "status": "pending",
+      "related_missing_id": "missing_003"
+    },
+    {
+      "task_id": "TASK-004",
+      "title": "获取近期原油价格走势及成本影响",
+      "description": "了解近期国际原油价格走势及对我方炼厂出厂价的实际滞后传导幅度。",
+      "assigned_to": "数据查询 Agent",
+      "priority": "medium",
+      "due_date": "2026-05-12",
+      "status": "pending",
+      "related_missing_id": "missing_004"
+    },
+    {
+      "task_id": "TASK-005",
+      "title": "获取重点客户合同详情",
+      "description": "获取浙江建投、江苏交工、杭州路桥的合同到期时间、年度采购量承诺及历史合作条款。",
+      "assigned_to": "客户经理",
+      "priority": "high",
+      "due_date": "2026-05-12",
+      "status": "pending",
+      "related_missing_id": "missing_005"
+    },
+    {
+      "task_id": "TASK-006",
+      "title": "获取江浙市政道路项目开工计划",
+      "description": "获取江浙地区集中施工的市政道路项目名称、预计开工和完工时间。",
+      "assigned_to": "华东大区负责人",
+      "priority": "medium",
+      "due_date": "2026-05-12",
+      "status": "pending",
+      "related_missing_id": "missing_006"
+    },
+    {
+      "task_id": "TASK-007",
+      "title": "确认低于3830元/吨的价格审批流程",
+      "description": "明确低于3830元/吨的特殊价格审批权限人和审批流程时效。",
+      "assigned_to": "总部销售管理部门",
+      "priority": "high",
+      "due_date": "2026-05-12",
+      "status": "pending",
+      "related_missing_id": "missing_007"
+    }
+  ]
+}

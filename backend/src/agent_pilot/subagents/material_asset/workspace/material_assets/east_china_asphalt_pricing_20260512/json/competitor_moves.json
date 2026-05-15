@@ -1,0 +1,23 @@
+{
+  "asset_type": "competitor_moves",
+  "asset_package_id": "east_china_asphalt_pricing_20260512",
+  "region": "华东大区",
+  "report_date": "2026-05-12",
+  "competitors": [
+    {
+      "competitor_name": "未明确（访谈中未提供具体名称）",
+      "low_price_range_yuan_per_ton": {
+        "min": 3820,
+        "max": 3850
+      },
+      "price_vs_our_mainstream_yuan_per_ton": {
+        "gap_min": -40,
+        "gap_max": -20
+      },
+      "additional_conditions": "未知（账期、返利、配送条件未提供）",
+      "impact_assessment": "竞品低价持续冲击，可能引发区域价格体系下移"
+    }
+  ],
+  "competitive_pressure_level": "高",
+  "notes": "竞品具体名称和报价明细缺失，详见 missing_info.json。"
+}

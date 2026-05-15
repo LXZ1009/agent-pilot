@@ -1,0 +1,151 @@
+{
+  "asset_package_id": "east_china_asphalt_pricing_20260512",
+  "asset_package_name": "每日沥青市场定价会议物料资产包（华东大区）",
+  "business_scenario": "每日沥青市场定价会议",
+  "target_object": "华东大区",
+  "region_leader": "张三",
+  "storage_path": "workspace/material_assets/east_china_asphalt_pricing_20260512",
+  "package_status": "pending_info",
+  "main_asset": "markdown/meeting_brief.md",
+  "read_entry": {
+    "default_asset": "meeting_brief_md",
+    "read_mode": "index_first",
+    "recommended_read_order": [
+      "markdown/meeting_brief.md",
+      "json/meeting_overview_card.json",
+      "json/interview_cards.json",
+      "json/risk_warning_list.json",
+      "json/five_minute_preview_payload.json",
+      "json/task_tracking_seed.json",
+      "missing_info.json",
+      "source_trace.json"
+    ]
+  },
+  "assets": [
+    {
+      "asset_id": "meeting_brief_md",
+      "asset_name": "会议简报",
+      "asset_type": "markdown",
+      "file_path": "markdown/meeting_brief.md",
+      "business_usage": "meeting_preview",
+      "status": "completed",
+      "read_priority": 1,
+      "source_refs": ["interview_card_east_china_001"],
+      "tags": ["会议简报", "定价会议", "华东大区"]
+    },
+    {
+      "asset_id": "meeting_overview_card_json",
+      "asset_name": "会议概览卡片",
+      "asset_type": "json",
+      "file_path": "json/meeting_overview_card.json",
+      "business_usage": "meeting_preview",
+      "status": "completed",
+      "read_priority": 2,
+      "source_refs": ["interview_card_east_china_001"],
+      "tags": ["概览", "数据看板"]
+    },
+    {
+      "asset_id": "interview_cards_json",
+      "asset_name": "访谈卡片集合",
+      "asset_type": "json",
+      "file_path": "json/interview_cards.json",
+      "business_usage": "interview_reference",
+      "status": "completed",
+      "read_priority": 3,
+      "source_refs": ["interview_card_east_china_001"],
+      "tags": ["访谈", "华东大区"]
+    },
+    {
+      "asset_id": "key_customer_list_json",
+      "asset_name": "重点客户清单",
+      "asset_type": "json",
+      "file_path": "json/key_customer_list.json",
+      "business_usage": "customer_strategy",
+      "status": "completed",
+      "read_priority": 4,
+      "source_refs": ["interview_card_east_china_001"],
+      "tags": ["客户", "成交目标"]
+    },
+    {
+      "asset_id": "price_execution_summary_json",
+      "asset_name": "价格执行摘要",
+      "asset_type": "json",
+      "file_path": "json/price_execution_summary.json",
+      "business_usage": "pricing_strategy",
+      "status": "completed",
+      "read_priority": 5,
+      "source_refs": ["interview_card_east_china_001"],
+      "tags": ["价格", "成交价"]
+    },
+    {
+      "asset_id": "competitor_moves_json",
+      "asset_name": "竞品动态",
+      "asset_type": "json",
+      "file_path": "json/competitor_moves.json",
+      "business_usage": "competitive_analysis",
+      "status": "completed",
+      "read_priority": 6,
+      "source_refs": ["interview_card_east_china_001"],
+      "tags": ["竞品", "竞争"]
+    },
+    {
+      "asset_id": "risk_warning_list_json",
+      "asset_name": "风险预警清单",
+      "asset_type": "json",
+      "file_path": "json/risk_warning_list.json",
+      "business_usage": "risk_management",
+      "status": "completed",
+      "read_priority": 7,
+      "source_refs": ["interview_card_east_china_001"],
+      "tags": ["风险", "预警"]
+    },
+    {
+      "asset_id": "five_minute_preview_json",
+      "asset_name": "会前五分钟预览",
+      "asset_type": "json",
+      "file_path": "json/five_minute_preview_payload.json",
+      "business_usage": "notification_push",
+      "status": "completed",
+      "read_priority": 8,
+      "source_refs": ["interview_card_east_china_001"],
+      "tags": ["预览", "通知"]
+    },
+    {
+      "asset_id": "task_tracking_seed_json",
+      "asset_name": "任务跟踪种子",
+      "asset_type": "json",
+      "file_path": "json/task_tracking_seed.json",
+      "business_usage": "post_meeting_tracking",
+      "status": "completed",
+      "read_priority": 9,
+      "source_refs": ["interview_card_east_china_001"],
+      "tags": ["任务", "跟踪"]
+    },
+    {
+      "asset_id": "overview_card_html",
+      "asset_name": "概览卡片 HTML",
+      "asset_type": "html",
+      "file_path": "html/overview_card.html",
+      "business_usage": "card_rendering",
+      "status": "completed",
+      "read_priority": 10,
+      "source_refs": ["interview_card_east_china_001"],
+      "tags": ["HTML", "卡片"]
+    },
+    {
+      "asset_id": "risk_card_html",
+      "asset_name": "风险卡片 HTML",
+      "asset_type": "html",
+      "file_path": "html/risk_card.html",
+      "business_usage": "card_rendering",
+      "status": "completed",
+      "read_priority": 11,
+      "source_refs": ["interview_card_east_china_001"],
+      "tags": ["HTML", "风险"]
+    }
+  ],
+  "asset_count": 11,
+  "asset_types": ["markdown", "json", "html"],
+  "generated_at": "2026-05-12T00:00:00Z",
+  "version": "v1"
+}

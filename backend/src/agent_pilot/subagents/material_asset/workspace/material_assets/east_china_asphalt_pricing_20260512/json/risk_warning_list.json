@@ -1,0 +1,55 @@
+{
+  "asset_type": "risk_warning_list",
+  "asset_package_id": "east_china_asphalt_pricing_20260512",
+  "region": "华东大区",
+  "report_date": "2026-05-12",
+  "risks": [
+    {
+      "risk_id": "RISK-001",
+      "title": "竞品低价持续冲击",
+      "description": "竞品低价区间3820–3850元/吨，低于我方主流成交价3860–3880元/吨，可能引发区域价格体系下移。",
+      "severity": "high",
+      "impact_scope": "华东区整体价格体系",
+      "trigger_conditions": "竞品持续以3820–3850元/吨报价且未附带明显附加条件",
+      "mitigation_actions": [
+        "密切监控竞品报价变化",
+        "必要时启动价格防御机制",
+        "对价格敏感客户加强绑定条件（采购量/账期/预付款）"
+      ],
+      "responsible_role": "华东大区负责人",
+      "status": "active"
+    },
+    {
+      "risk_id": "RISK-002",
+      "title": "库存消化偏慢",
+      "description": "华东区库存1.8–2.1万吨，中等偏高，略高于安全库存，去库速度偏慢。若持续累积可能导致被动降价。",
+      "severity": "medium",
+      "impact_scope": "华东区库存管理",
+      "trigger_conditions": "库存连续3日无下降或继续上升",
+      "mitigation_actions": [
+        "关注去库速度变化趋势",
+        "必要时调整促销策略加速去库",
+        "评估是否需要调整生产或调拨计划"
+      ],
+      "responsible_role": "华东大区负责人 / 供应链团队",
+      "status": "monitoring"
+    },
+    {
+      "risk_id": "RISK-003",
+      "title": "价格敏感客户转化压力大",
+      "description": "江苏交工等价格敏感客户面临较大竞争压力，需在销量与利润之间取得平衡。",
+      "severity": "medium",
+      "impact_scope": "重点客户（江苏交工等）",
+      "trigger_conditions": "价格敏感客户要求低于3830元/吨的报价",
+      "mitigation_actions": [
+        "严格执行价格底线规则（低于3830需绑定条件）",
+        "通过采购量、账期、预付款等条件换取价格让步",
+        "评估客户流失风险并制定替代方案"
+      ],
+      "responsible_role": "客户经理 / 华东大区负责人",
+      "status": "active"
+    }
+  ],
+  "overall_risk_level": "medium-high",
+  "notes": "部分风险量化数据缺失，详见 missing_info.json。"
+}

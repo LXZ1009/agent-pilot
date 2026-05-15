@@ -1,0 +1,132 @@
+{
+  "card_type": "interview_cards",
+  "asset_package_id": "east_china_asphalt_pricing_20260512",
+  "cards": [
+    {
+      "card_id": "interview_card_east_china_001",
+      "interviewee": "张三",
+      "role": "华东大区负责人",
+      "region": "华东大区",
+      "interview_date": "2026-05-11",
+      "sections": {
+        "demand": {
+          "judgment": "中性偏强",
+          "estimated_daily_volume_tons": {
+            "min": 3500,
+            "max": 4200
+          },
+          "drivers": [
+            "江浙市政道路项目集中施工",
+            "终端采购量环比增加 5%-10%"
+          ],
+          "stockpiling_attitude": "谨慎，无大规模囤货"
+        },
+        "pricing": {
+          "mainstream_transaction_price_yuan_per_ton": {
+            "min": 3860,
+            "max": 3880
+          },
+          "previous_price_yuan_per_ton": {
+            "min": 3880,
+            "max": 3900
+          },
+          "competitor_low_price_yuan_per_ton": {
+            "min": 3820,
+            "max": 3850
+          },
+          "strategy": "稳主价、分客户跟价",
+          "customer_specific_pricing": [
+            {
+              "customer_name": "浙江建投",
+              "price_yuan_per_ton_min": 3880,
+              "price_yuan_per_ton_max": 3900,
+              "customer_type": "稳定客户"
+            },
+            {
+              "customer_name": "杭州路桥",
+              "price_yuan_per_ton_min": 3880,
+              "price_yuan_per_ton_max": 3900,
+              "customer_type": "稳定客户"
+            },
+            {
+              "customer_name": "江苏交工",
+              "price_yuan_per_ton_min": 3830,
+              "price_yuan_per_ton_max": 3850,
+              "customer_type": "价格敏感客户"
+            }
+          ],
+          "floor_rule": "低于3830需绑定采购量/账期/预付款"
+        },
+        "inventory": {
+          "current_stock_tons": {
+            "min": 18000,
+            "max": 21000
+          },
+          "level_assessment": "中等偏高，略高于安全库存",
+          "depletion_speed": "偏慢",
+          "trend": "未明显累积但消化偏慢"
+        },
+        "cost_and_supply": {
+          "refinery_ex_factory_price_change_yuan_per_ton": {
+            "min": -40,
+            "max": -20
+          },
+          "crude_oil_cost_lag_impact_yuan_per_ton": {
+            "min": 10,
+            "max": 20
+          },
+          "main_pressure_cause": "非原油成本，主要为供需关系和竞品冲击"
+        },
+        "forecast": {
+          "tomorrow_trend": "继续承压、弱稳运行",
+          "mainstream_price_range_yuan_per_ton": {
+            "min": 3860,
+            "max": 3880
+          },
+          "low_price_customer_range_yuan_per_ton": {
+            "min": 3830,
+            "max": 3850
+          }
+        },
+        "execution_plan": {
+          "total_target_tons": {
+            "min": 2000,
+            "max": 2500
+          },
+          "key_customers": [
+            {
+              "name": "浙江建投",
+              "target_tons_min": 800,
+              "target_tons_max": 1000,
+              "target_price_yuan_per_ton": 3880
+            },
+            {
+              "name": "江苏交工",
+              "target_tons_min": 500,
+              "target_tons_max": 700,
+              "target_price_yuan_per_ton_min": 3830,
+              "target_price_yuan_per_ton_max": 3850,
+              "conditions": "控制账期和让利条件"
+            },
+            {
+              "name": "杭州路桥及零散客户",
+              "target_tons_min": 600,
+              "target_tons_max": 800,
+              "target_price_yuan_per_ton_min": 3880,
+              "target_price_yuan_per_ton_max": 3900
+            }
+          ]
+        },
+        "headquarters_support_needed": [
+          "特殊价格审批（低于3830元/吨）",
+          "账期灵活处理（绑定采购量或预付款）"
+        ],
+        "risk_warnings": [
+          "竞品低价持续冲击，可能引发区域价格体系下移",
+          "库存消化偏慢，若持续累积可能导致被动降价",
+          "价格敏感客户转化压力大，需平衡销量与利润"
+        ]
+      }
+    }
+  ]
+}

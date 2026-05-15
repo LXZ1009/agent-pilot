@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>风险预警清单 — 华东大区</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; padding: 20px; background: #f5f7fa; color: #333; }
+    .card { max-width: 960px; margin: 0 auto; background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); overflow: hidden; }
+    .header { background: linear-gradient(135deg, #c62828, #b71c1c); color: #fff; padding: 24px 32px; }
+    .header h1 { margin: 0 0 4px 0; font-size: 22px; }
+    .header p { margin: 0; opacity: 0.9; font-size: 14px; }
+    .body { padding: 24px 32px; }
+    .risk-item { border-left: 4px solid #ddd; padding: 16px 20px; margin-bottom: 16px; background: #fafafa; border-radius: 0 8px 8px 0; }
+    .risk-high { border-left-color: #c62828; }
+    .risk-medium { border-left-color: #e65100; }
+    .risk-low { border-left-color: #2e7d32; }
+    .risk-title { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+    .risk-desc { font-size: 14px; color: #555; margin-bottom: 12px; line-height: 1.6; }
+    .risk-tags { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+    .badge-high { background: #fce4ec; color: #c62828; }
+    .badge-medium { background: #fff3e0; color: #e65100; }
+    .badge-label { background: #e8eaf6; color: #283593; }
+    .actions { font-size: 13px; color: #666; }
+    .actions strong { color: #333; }
+    .footer { background: #f8f9fa; padding: 12px 32px; font-size: 12px; color: #999; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <h1>⚠️ 风险预警清单</h1>
+      <p>每日沥青市场定价会议 — 华东大区 | 2026-05-12</p>
+    </div>
+    <div class="body">
+      <!-- RISK-001 -->
+      <div class="risk-item risk-high">
+        <div class="risk-title">RISK-001：竞品低价持续冲击</div>
+        <div class="risk-tags">
+          <span class="badge badge-high">高</span>
+          <span class="badge badge-label">影响范围：华东区整体价格体系</span>
+        </div>
+        <div class="risk-desc">
+          竞品低价区间3820–3850元/吨，低于我方主流成交价3860–3880元/吨，可能引发区域价格体系下移。
+        </div>
+        <div class="actions">
+          <strong>应对建议：</strong>密切监控竞品报价变化；必要时启动价格防御机制；对价格敏感客户加强绑定条件（采购量/账期/预付款）。
+        </div>
+      </div>
+
+      <!-- RISK-002 -->
+      <div class="risk-item risk-medium">
+        <div class="risk-title">RISK-002：库存消化偏慢</div>
+        <div class="risk-tags">
+          <span class="badge badge-medium">中</span>
+          <span class="badge badge-label">影响范围：华东区库存管理</span>
+        </div>
+        <div class="risk-desc">
+          华东区库存1.8–2.1万吨，中等偏高，略高于安全库存，去库速度偏慢。若持续累积可能导致被动降价。
+        </div>
+        <div class="actions">
+          <strong>应对建议：</strong>关注去库速度变化趋势；必要时调整促销策略加速去库；评估是否需要调整生产或调拨计划。
+        </div>
+      </div>
+
+      <!-- RISK-003 -->
+      <div class="risk-item risk-medium">
+        <div class="risk-title">RISK-003：价格敏感客户转化压力大</div>
+        <div class="risk-tags">
+          <span class="badge badge-medium">中</span>
+          <span class="badge badge-label">影响范围：重点客户（江苏交工等）</span>
+        </div>
+        <div class="risk-desc">
+          江苏交工等价格敏感客户面临较大竞争压力，需在销量与利润之间取得平衡。低于3830元/吨需绑定采购量/账期/预付款。
+        </div>
+        <div class="actions">
+          <strong>应对建议：</strong>严格执行价格底线规则；通过采购量、账期、预付款等条件换取价格让步；评估客户流失风险并制定替代方案。
+        </div>
+      </div>
+    </div>
+    <div class="footer">
+      资产包 ID：east_china_asphalt_pricing_20260512 | 生成时间：2026-05-12 | MaterialAssetAgent
+    </div>
+  </div>
+</body>
+</html>

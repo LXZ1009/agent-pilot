@@ -1,0 +1,82 @@
+{
+  "asset_package_id": "east_china_asphalt_pricing_20260512",
+  "missing_items": [
+    {
+      "missing_id": "missing_001",
+      "field": "competitor_detail",
+      "description": "竞品具体名称及报价明细（含账期、返利、配送条件）",
+      "impact": "影响我方竞争策略和价格底线判断",
+      "suggested_question": "竞品低价区间3820–3850元/吨的具体来源是哪几家？是否包含账期、返利或配送条件？",
+      "target_agent": "pre_meeting_interview_agent",
+      "target_role": "客户经理 / 华东大区负责人",
+      "priority": "high",
+      "status": "pending"
+    },
+    {
+      "missing_id": "missing_002",
+      "field": "historical_sales_data",
+      "description": "近3个月华东区沥青销量、收入、毛利率数据",
+      "impact": "无法评估当前价格调整对利润的影响",
+      "suggested_question": "请提供近3个月华东区沥青的月度销量、收入和毛利率数据。",
+      "target_agent": "data_query_agent",
+      "target_role": "数据查询 Agent",
+      "priority": "high",
+      "status": "pending"
+    },
+    {
+      "missing_id": "missing_003",
+      "field": "safety_stock_threshold",
+      "description": "华东区安全库存的具体数值",
+      "impact": "无法准确判断当前1.8–2.1万吨库存是否真正高于安全线",
+      "suggested_question": "华东区沥青的安全库存阈值是多少吨？",
+      "target_agent": "data_query_agent",
+      "target_role": "数据查询 Agent",
+      "priority": "medium",
+      "status": "pending"
+    },
+    {
+      "missing_id": "missing_004",
+      "field": "crude_oil_price_trend",
+      "description": "近期原油价格走势及对我方成本的实际影响",
+      "impact": "成本端信息不完整，影响价格预判准确性",
+      "suggested_question": "近期国际原油价格走势如何？对我方炼厂出厂价的实际滞后传导幅度是多少？",
+      "target_agent": "data_query_agent",
+      "target_role": "数据查询 Agent",
+      "priority": "medium",
+      "status": "pending"
+    },
+    {
+      "missing_id": "missing_005",
+      "field": "customer_contract_details",
+      "description": "重点客户（浙江建投、江苏交工、杭州路桥）的合同到期日、年度采购量、历史合作条款",
+      "impact": "无法精准制定谈判策略和让步空间",
+      "suggested_question": "请提供三大重点客户的合同到期时间、年度采购量承诺及历史合作条款。",
+      "target_agent": "pre_meeting_interview_agent",
+      "target_role": "客户经理",
+      "priority": "high",
+      "status": "pending"
+    },
+    {
+      "missing_id": "missing_006",
+      "field": "project_pipeline",
+      "description": "江浙地区市政道路项目的具体开工计划和时间表",
+      "impact": "需求预判缺乏项目级支撑",
+      "suggested_question": "江浙地区集中施工的市政道路项目有哪些？预计开工和完工时间？",
+      "target_agent": "pre_meeting_interview_agent",
+      "target_role": "华东大区负责人",
+      "priority": "medium",
+      "status": "pending"
+    },
+    {
+      "missing_id": "missing_007",
+      "field": "headquarters_approval_authority",
+      "description": "低于3830元/吨的特殊价格审批权限人和流程",
+      "impact": "执行计划中提到的特殊价格审批无法落地",
+      "suggested_question": "低于3830元/吨的价格审批由谁负责？审批流程和时效是多久？",
+      "target_agent": "pre_meeting_interview_agent",
+      "target_role": "总部销售管理部门",
+      "priority": "high",
+      "status": "pending"
+    }
+  ]
+}
