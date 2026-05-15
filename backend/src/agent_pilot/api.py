@@ -4,11 +4,12 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
 from agent_pilot.agent_gateway import AgentGateway, LangGraphAgentGateway
+from agent_pilot.artifacts import ArtifactError, ArtifactRegistry
 from agent_pilot.evidence import EvidenceArchive
 from agent_pilot.models import AgentInfo, AgentName
 from agent_pilot.streaming_protocol import encode_sse_event
@@ -64,6 +65,7 @@ AGENTS = [
 def create_app(
     agent_gateway: AgentGateway | None = None,
     evidence_archive: EvidenceArchive | None = None,
+    artifact_registry: ArtifactRegistry | None = None,
 ) -> FastAPI:
     app = FastAPI(
         title="Agent Pilot API",
@@ -79,6 +81,7 @@ def create_app(
     )
     app.state.agent_gateway = agent_gateway or LangGraphAgentGateway.from_env()
     app.state.evidence_archive = evidence_archive or EvidenceArchive()
+    app.state.artifact_registry = artifact_registry or ArtifactRegistry(app.state.evidence_archive)
 
     @app.get("/api/health")
     async def health() -> dict[str, str]:
@@ -111,6 +114,21 @@ def create_app(
     @app.get("/api/threads/{thread_id}/evidence")
     async def get_thread_evidence(thread_id: str) -> dict[str, Any]:
         return app.state.evidence_archive.build_business_evidence(thread_id)
+
+    @app.get("/api/threads/{thread_id}/artifacts")
+    async def list_thread_artifacts(thread_id: str, run_id: str | None = None) -> dict[str, Any]:
+        return {
+            "thread_id": thread_id,
+            "run_id": run_id,
+            "artifacts": app.state.artifact_registry.list_for_run(thread_id, run_id),
+        }
+
+    @app.get("/api/threads/{thread_id}/artifacts/{artifact_id}")
+    async def get_thread_artifact(thread_id: str, artifact_id: str) -> dict[str, Any]:
+        try:
+            return app.state.artifact_registry.read_content(thread_id, artifact_id)
+        except ArtifactError as exc:
+            raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
 
     return app
 
