@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-const css = readFileSync(resolve(__dirname, '../src/styles.css'), 'utf8');
+const css = readFileSync(resolve(__dirname, '../src/styles.css'), 'utf8').replace(/\r\n/g, '\n');
 
 describe('workspace scroll layout styles', () => {
   it('locks the desktop workspace to the viewport and keeps columns internally scrollable', () => {

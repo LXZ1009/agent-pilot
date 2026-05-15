@@ -446,6 +446,48 @@ describe('workspace view model', () => {
     ]);
   });
 
+  it('keeps ordinary workspace files out of artifacts unless they are explicitly marked', () => {
+    const model = buildRunInspectorModel([
+      lifecycleEvent('thread_1:1', 1, 'running', '2026-05-15T01:00:00.000Z'),
+      valuesEvent('thread_1:2', 2, [], {
+        files: {
+          '/scratch/notes.md': '# temporary notes'
+        }
+      }),
+      lifecycleEvent('thread_1:3', 3, 'completed', '2026-05-15T01:00:03.000Z')
+    ]);
+    const runId = model.runs[0].id;
+
+    expect(model.artifactsByRunId[runId]).toEqual([]);
+  });
+
+  it('projects explicit artifact envelopes with platform role and source fields', () => {
+    const model = buildRunInspectorModel([
+      lifecycleEvent('thread_1:1', 1, 'running', '2026-05-15T01:00:00.000Z'),
+      customArtifactEvent('thread_1:2', {
+        id: 'artifact_1',
+        title: 'Run report',
+        role: 'deliverable',
+        source: 'inline',
+        mime_type: 'text/markdown',
+        content: '# report'
+      }),
+      lifecycleEvent('thread_1:3', 3, 'completed', '2026-05-15T01:00:03.000Z')
+    ]);
+    const runId = model.runs[0].id;
+
+    expect(model.artifactsByRunId[runId]).toMatchObject([
+      {
+        id: 'artifact_1',
+        title: 'Run report',
+        role: 'deliverable',
+        source: 'inline',
+        mimeType: 'text/markdown',
+        kind: 'document'
+      }
+    ]);
+  });
+
   it('projects tool calls and async tasks from values snapshots', () => {
     const model = buildRunInspectorModel([
       lifecycleEvent('thread_1:1', 1, 'running', '2026-05-14T09:41:01.000Z'),
@@ -543,6 +585,23 @@ function lifecycleEvent(id: string, seq: number, status: string, timestamp: stri
       namespace: [],
       timestamp,
       data: { event: status, graph_name: 'supervisor' }
+    }
+  };
+}
+
+function customArtifactEvent(id: string, artifact: Record<string, unknown>) {
+  return {
+    type: 'event',
+    event_id: id,
+    method: 'custom',
+    params: {
+      namespace: [],
+      timestamp: '2026-05-15T01:00:01.000Z',
+      data: {
+        type: 'artifact.created',
+        title: artifact.title,
+        artifact
+      }
     }
   };
 }

@@ -186,6 +186,8 @@ export interface ArtifactDescriptor {
   title: string;
   uri?: string;
   mimeType?: string;
+  role: ArtifactRole;
+  source: ArtifactSource;
   kind: 'document' | 'data' | 'table' | 'preview' | 'bundle' | 'link' | 'unknown';
   summary?: string;
   producerNodeId?: string;
@@ -193,6 +195,9 @@ export interface ArtifactDescriptor {
   content?: unknown;
   metadata?: Record<string, unknown>;
 }
+
+export type ArtifactRole = 'deliverable' | 'workspace_file' | 'manifest' | 'preview';
+export type ArtifactSource = 'inline' | 'workspace';
 
 export interface DiagnosticItem {
   id: string;
@@ -598,13 +603,6 @@ function projectRunArtifacts(runId: string, events: unknown[]): ArtifactDescript
         );
       }
     }
-
-    const files = asRecord(data.files);
-    Object.entries(files).forEach(([uri, content], fileIndex) => {
-      artifacts.push(
-        toArtifactDescriptor(runId, `${runId}:file:${eventIndex}:${fileIndex}`, { uri, content }, data)
-      );
-    });
   });
   return artifacts;
 }
@@ -631,12 +629,26 @@ function toArtifactDescriptor(
     title,
     uri,
     mimeType,
+    role: normalizeArtifactRole(artifact.role, 'deliverable'),
+    source: normalizeArtifactSource(artifact.source, content),
     kind: inferArtifactKind(mimeType || '', uri || '', content),
     summary: readString(metadata.summary) || readString(artifact.summary) || undefined,
     schemaRef: readString(artifact.schema_ref) || readString(artifact.schemaRef) || undefined,
     content,
     metadata
   };
+}
+
+function normalizeArtifactRole(value: unknown, fallback: ArtifactRole): ArtifactRole {
+  if (value === 'deliverable' || value === 'workspace_file' || value === 'manifest' || value === 'preview') {
+    return value;
+  }
+  return fallback;
+}
+
+function normalizeArtifactSource(value: unknown, content: unknown): ArtifactSource {
+  if (value === 'inline' || value === 'workspace') return value;
+  return content === undefined ? 'workspace' : 'inline';
 }
 
 function inferArtifactKind(mimeType: string, uri: string, content: unknown): ArtifactDescriptor['kind'] {
