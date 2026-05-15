@@ -446,6 +446,15 @@ describe('workspace view model', () => {
     ]);
   });
 
+  it('prefers backend-issued run ids over synthetic event ids', () => {
+    const model = buildRunInspectorModel([
+      lifecycleEvent('thread_1:1', 1, 'running', '2026-05-15T01:00:00.000Z', 'run_real_1'),
+      lifecycleEvent('thread_1:2', 2, 'completed', '2026-05-15T01:00:03.000Z', 'run_real_1')
+    ]);
+
+    expect(model.runs[0].id).toBe('run_real_1');
+  });
+
   it('keeps ordinary workspace files out of artifacts unless they are explicitly marked', () => {
     const model = buildRunInspectorModel([
       lifecycleEvent('thread_1:1', 1, 'running', '2026-05-15T01:00:00.000Z'),
@@ -575,7 +584,7 @@ function evidence(id: string, category: string, title: string): EvidenceCard {
   };
 }
 
-function lifecycleEvent(id: string, seq: number, status: string, timestamp: string) {
+function lifecycleEvent(id: string, seq: number, status: string, timestamp: string, runId?: string) {
   return {
     type: 'event',
     event_id: id,
@@ -584,7 +593,7 @@ function lifecycleEvent(id: string, seq: number, status: string, timestamp: stri
     params: {
       namespace: [],
       timestamp,
-      data: { event: status, graph_name: 'supervisor' }
+      data: { event: status, graph_name: 'supervisor', ...(runId ? { run_id: runId } : {}) }
     }
   };
 }

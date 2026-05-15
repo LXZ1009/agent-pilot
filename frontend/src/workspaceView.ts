@@ -462,13 +462,13 @@ function buildInteractionRuns(events: unknown[], duplicateCount: number): Intera
     const lifecycleEvent = readString(data.event);
 
     if (method === 'lifecycle' && lifecycleEvent === 'running') {
-      activeRun = createInteractionRun(eventId, timestamp, duplicateCount);
+      activeRun = createInteractionRun(readString(data.run_id), eventId, timestamp, duplicateCount);
       runs.push(activeRun);
       return;
     }
 
     if (!activeRun) {
-      activeRun = createInteractionRun(eventId, timestamp, duplicateCount, 'unknown');
+      activeRun = createInteractionRun(readString(data.run_id), eventId, timestamp, duplicateCount, 'unknown');
       runs.push(activeRun);
     }
 
@@ -493,13 +493,14 @@ function buildInteractionRuns(events: unknown[], duplicateCount: number): Intera
 }
 
 function createInteractionRun(
+  runId: string,
   eventId: string,
   timestamp: string | undefined,
   duplicateCount: number,
   status: InteractionRunStatus = 'running'
 ): InteractionRun {
   return {
-    id: `run:${eventId}`,
+    id: runId || `run:${eventId}`,
     title: 'Current task',
     startedAt: timestamp,
     status,

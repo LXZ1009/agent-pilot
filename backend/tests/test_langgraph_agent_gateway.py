@@ -56,7 +56,9 @@ def test_langgraph_gateway_translates_run_start_to_sdk_stream():
             timeout=1,
         )
 
-        assert response == {"type": "success", "id": 7, "result": {}}
+        assert response["type"] == "success"
+        assert response["id"] == 7
+        assert response["result"]["run_id"]
         assert client.threads.created == [
             {"thread_id": "11111111-1111-4111-8111-111111111111", "if_exists": "do_nothing"}
         ]
@@ -72,6 +74,30 @@ def test_langgraph_gateway_translates_run_start_to_sdk_stream():
         ]
         assert event["method"] == "values"
         assert event["params"]["data"]["messages"][0]["content"] == "ok"
+
+    asyncio.run(scenario())
+
+
+def test_langgraph_gateway_publishes_stable_run_id_on_lifecycle_events():
+    async def scenario():
+        client = FakeLangGraphClient()
+        gateway = LangGraphAgentGateway("http://test", client=client)
+
+        response = await gateway.handle_command(
+            "11111111-1111-4111-8111-111111111111",
+            {
+                "id": 9,
+                "method": "run.start",
+                "params": {"assistant_id": "supervisor"},
+            },
+        )
+
+        event = await asyncio.wait_for(
+            anext(gateway.stream("11111111-1111-4111-8111-111111111111", {"channels": ["lifecycle"]})),
+            timeout=1,
+        )
+
+        assert event["params"]["data"]["run_id"] == response["result"]["run_id"]
 
     asyncio.run(scenario())
 

@@ -6,6 +6,7 @@ from collections import defaultdict
 from collections.abc import AsyncIterator
 from datetime import datetime, timezone
 from typing import Any, Protocol
+from uuid import uuid4
 
 from langgraph_sdk import get_client
 
@@ -56,12 +57,13 @@ class LangGraphAgentGateway:
 
         params = command.get("params") or {}
         await self.client.threads.create(thread_id=thread_id, if_exists="do_nothing")
+        run_id = str(uuid4())
 
-        task = asyncio.create_task(self._run_graph(thread_id, params))
+        task = asyncio.create_task(self._run_graph(thread_id, params, run_id))
         self._running_tasks.add(task)
         task.add_done_callback(self._running_tasks.discard)
 
-        return {"type": "success", "id": command_id, "result": {}}
+        return {"type": "success", "id": command_id, "result": {"run_id": run_id}}
 
     async def stream(self, thread_id: str, params: dict[str, Any]) -> AsyncIterator[dict[str, Any]]:
         since = int(params.get("since") or 0)
@@ -78,12 +80,12 @@ class LangGraphAgentGateway:
         finally:
             self._subscribers[thread_id].discard(queue)
 
-    async def _run_graph(self, thread_id: str, params: dict[str, Any]) -> None:
+    async def _run_graph(self, thread_id: str, params: dict[str, Any], run_id: str) -> None:
         assistant_id = _resolve_assistant_id(params.get("assistant_id"), self.assistant_id)
         await self._publish(
             thread_id,
             "lifecycle",
-            {"event": "running", "graph_name": assistant_id},
+            {"event": "running", "graph_name": assistant_id, "run_id": run_id},
         )
         try:
             async for part in self.client.runs.stream(
@@ -105,13 +107,13 @@ class LangGraphAgentGateway:
             await self._publish(
                 thread_id,
                 "lifecycle",
-                {"event": "completed", "graph_name": assistant_id},
+                {"event": "completed", "graph_name": assistant_id, "run_id": run_id},
             )
         except Exception as exc:
             await self._publish(
                 thread_id,
                 "lifecycle",
-                {"event": "failed", "graph_name": assistant_id, "error": str(exc)},
+                {"event": "failed", "graph_name": assistant_id, "error": str(exc), "run_id": run_id},
             )
 
     async def _publish(
