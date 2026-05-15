@@ -309,39 +309,124 @@ Manifests:
   `kind`, `role`, `schemaRef`, and `summary`.
 - Do not special-case file names like `asset_index.json`.
 
-## Frontend UX
+## UI UX Pro Design Requirements
 
-The `Artifacts` tab has three areas.
+The `Artifacts` tab must follow the `ui-ux-pro-max` design standard, not a
+generic frontend UX checklist. The product type is a compact SaaS/workbench
+side panel, so the design should be quiet, dense, scannable, and operational.
+Avoid landing-page styling, decorative panels, oversized headings, and nested
+cards.
+
+Design priorities:
+
+1. Accessibility
+2. Touch and interaction
+3. Performance
+4. Style consistency
+5. Layout and responsive behavior
+6. Typography and color
+7. Motion and feedback
+
+### Information Architecture
+
+The tab has three functional areas, ordered by user intent:
 
 1. Artifact list
-
-- Shows artifact title, kind, role, source, and status.
-- Groups by role in this order: `deliverable`, `preview`, `manifest`,
-  `workspace_file`.
-- Highlights the first final deliverable by default.
-- Empty state says that no reusable deliverables have been produced yet.
-
 2. Artifact preview
+3. Artifact metadata
+
+This is not a full IDE layout. It is a compact right-panel workspace that lets
+the user quickly identify a deliverable, preview it, and understand where it
+came from.
+
+### Artifact List
+
+Purpose:
+
+- Let the user scan reusable deliverables for the selected interaction run.
+- Make final deliverables easier to find than previews or manifests.
+- Avoid mixing ordinary process evidence into the list.
+
+Required content:
+
+- Artifact title.
+- Kind: `document`, `data`, `table`, `preview`, `bundle`, `link`, or `unknown`.
+- Role: `deliverable`, `preview`, `manifest`, or `workspace_file`.
+- Source: `inline` or `workspace`.
+- Status or availability: loaded, loading, unavailable, unsupported, or error.
+
+Grouping order:
+
+1. `deliverable`
+2. `preview`
+3. `manifest`
+4. `workspace_file`
+
+Interaction:
+
+- The first available `deliverable` is selected by default.
+- If no `deliverable` exists, select the first available artifact.
+- Every artifact row is a real button with visible focus state.
+- Button hit area must be at least 44px high.
+- Rows must use icon + text or text + status badge. Do not use emoji.
+- Long titles wrap or truncate with a tooltip/expanded metadata fallback.
+- Empty state must be helpful and specific: no reusable deliverables have been
+  produced for this interaction yet.
+
+Visual style:
+
+- Use existing product tokens and Lucide icons.
+- Use 8px or smaller radius to match the current workbench.
+- Use semantic badges sparingly; avoid color-only meaning.
+- Keep list density high enough for 8-12 artifacts without feeling cluttered.
+
+### Artifact Preview
+
+Purpose:
+
+- Let the user inspect the selected artifact without leaving the right panel.
+- Render by content shape, not by business file name.
+- Show graceful fallbacks for unsupported or unavailable content.
 
 Renderer selection:
 
 - `document` + Markdown MIME: render Markdown.
-- `data`: render formatted JSON with collapsible sections later if needed.
-- `table`: render tabular preview.
-- `preview` + HTML MIME: render sanitized preview or source fallback.
-- `link`: show link with metadata.
-- `unknown`: show metadata and unsupported content message.
+- `data`: render formatted JSON.
+- `table`: render tabular preview with stable columns.
+- `preview` + HTML MIME: render sanitized/sandboxed preview if available;
+  otherwise render source text.
+- `bundle` or `manifest`: render a bundle index using generic child descriptors.
+- `link`: show the link and metadata.
+- `unknown`: show metadata, virtual URI, and unsupported content message.
 
-3. Artifact metadata
+UI UX Pro requirements:
+
+- Reserve stable preview height to avoid layout shift while content loads.
+- Use skeleton or inline loading state if content loading may exceed 300ms.
+- Avoid horizontal scroll in the right panel except inside code/table preview
+  surfaces where it is expected.
+- Tables must not rely on color alone; use headers, labels, and empty states.
+- JSON/code surfaces should use monospace, readable contrast, and line wrapping
+  controls where practical.
+- Markdown should use compact typography; headings inside the panel must not
+  look like page-level hero headings.
+- HTML preview must be sandboxed or downgraded to source text.
+
+### Artifact Metadata
+
+Purpose:
+
+- Explain where the artifact is stored and how it relates to execution.
+- Keep technical details discoverable without overwhelming the main preview.
 
 Always show:
 
-- source label: `inline` or `workspace`;
-- role;
-- MIME type or kind;
-- virtual URI when present;
-- producing trace node when present;
-- created/updated time when present.
+- Source label: `inline` or `workspace`.
+- Role.
+- MIME type or kind.
+- Virtual URI when present.
+- Producing trace node when present.
+- Created/updated time when present.
 
 User-facing labels:
 
@@ -352,8 +437,59 @@ User-facing labels:
 - `manifest`: "产物清单"
 - `preview`: "预览"
 
-The UI should remain compact because it lives inside the right panel. It should
-not become a full-width IDE layout.
+Interaction:
+
+- Metadata can be displayed as a compact definition list or collapsible details
+  block.
+- If `producerNodeId` is available, provide a clear affordance to inspect the
+  related Trace node in a future iteration.
+- Copy actions are optional in the MVP. If added later, use icon buttons with
+  aria labels and visible success/error feedback.
+
+### Responsive Behavior
+
+The current artifact workspace lives in a right-side panel around 380-430px
+wide. It must remain usable at that width.
+
+Rules:
+
+- Use one-column layout inside the right panel.
+- Artifact list appears above the preview or as a compact vertical list.
+- Do not introduce a side-by-side file tree + preview layout in the MVP.
+- No page-level horizontal scroll.
+- Text must fit within buttons, rows, and badges.
+- Reserve space for async preview states to avoid cumulative layout shift.
+
+### Accessibility
+
+Required:
+
+- Normal text contrast must meet at least WCAG AA 4.5:1.
+- All icon-only buttons need aria labels.
+- Keyboard navigation order follows visual order.
+- Selected artifact must be announced with `aria-current` or equivalent state.
+- Loading, empty, unavailable, and error states must be text-visible.
+- Focus rings must remain visible and consistent with the existing design
+  system.
+
+### Motion and Feedback
+
+- State changes should be subtle and functional.
+- Use 150-300ms transitions for selection, loading completion, and collapsible
+  metadata.
+- Respect `prefers-reduced-motion`.
+- Do not animate width/height in ways that cause reflow; prefer opacity or
+  transform.
+- Loading and error states should appear close to the affected artifact or
+  preview, not only at the top of the panel.
+
+### Performance
+
+- Lazy-load workspace artifact content only when selected.
+- Cache loaded content per artifact during the current thread view.
+- Avoid rendering very large JSON/table content all at once; use truncation,
+  row limits, or virtualization later if needed.
+- Do not block the main panel while a single artifact content fetch is pending.
 
 ## Error Handling
 
