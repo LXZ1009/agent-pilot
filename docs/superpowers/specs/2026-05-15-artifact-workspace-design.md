@@ -188,11 +188,30 @@ Do not add business fields such as `meetingId`, `customerList`, or
 
 The MVP uses a simplified storage model.
 
+### Ownership Model
+
+DeepAgents default filesystem state is thread-scoped, while the Artifact
+Workspace is run-scoped from the user's point of view. The platform must keep
+those two concepts separate:
+
+- Thread storage answers where files live and who may read them.
+- Artifact ownership answers which interaction run registered the deliverable.
+- Every backend-issued artifact descriptor must carry a stable `runId`.
+- A workspace file may remain readable across the thread, but it must not appear
+  in a run's Artifact Workspace unless that run explicitly registered it as an
+  artifact.
+- If the runtime cannot provide a durable run ID, the gateway must assign one at
+  run start and propagate it into lifecycle and artifact events before frontend
+  projection.
+
 `inline`:
 
 - The descriptor may include `content`.
 - The backend evidence archive is enough to replay the artifact.
 - Use only for small content.
+- MVP inline limit: up to 64 KiB after UTF-8 serialization.
+- Oversized inline payloads must be rejected or converted into workspace-backed
+  artifacts before they are exposed to the frontend.
 
 `workspace`:
 
@@ -200,6 +219,10 @@ The MVP uses a simplified storage model.
 - The backend maps the virtual URI to an allowed workspace root.
 - The frontend calls the backend artifact content API to load the content.
 - The frontend must never receive or construct local absolute filesystem paths.
+- Workspace artifact content is lazy-loaded only when selected.
+- MVP preview limit: return at most 256 KiB through the content API. Larger
+  artifacts return metadata plus a `too_large` availability state instead of
+  inlining the full content.
 
 URI rules:
 
@@ -264,12 +287,16 @@ Backend responsibilities:
 
 - Merge declared inline artifacts from evidence events with workspace artifacts
   discovered for the run.
+- Issue or normalize the platform artifact ID before returning descriptors to
+  the frontend.
 - Resolve content through source-specific resolvers.
 - Enforce allowed workspace roots.
 - Normalize paths and block traversal such as `..`, `~`, drive roots, or
   absolute local paths from frontend input.
 - Return clear errors for missing, unreadable, too-large, or unsupported
   artifacts.
+- Treat `artifact_id` as the trusted lookup key. `uri` is descriptive metadata
+  and an internal resolver input, not a free-form frontend query surface.
 
 Do not require the frontend to know whether a workspace artifact originally came
 from an async agent, a local workspace folder, or a later persistent backend.
@@ -514,6 +541,8 @@ Errors should not break the rest of the right panel.
 - Never let frontend query arbitrary filesystem paths.
 - All workspace reads go through artifact ID or backend-issued virtual URI.
 - Backend must validate artifact ownership by `thread_id` and optional `run_id`.
+- Backend, not the frontend or tool payload, is the authority that signs off the
+  stable artifact ID returned by public APIs.
 - Artifact descriptors should not include secrets or raw environment paths.
 - HTML preview must be sanitized or sandboxed. If that is not available in the
   MVP, render HTML as source text instead.
